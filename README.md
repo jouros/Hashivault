@@ -134,8 +134,20 @@ $ firefox &
 
 Vault is listening localhost, so lets have a redirect: 
 ```
-vault@hashivault:~$ socat TCP4-L:8300,fork,reuseaddr TCP4:TCP4:127.0.0.1:8200
+$ socat TCP4-L:8300,fork,reuseaddr TCP4:127.0.0.1:8200
 ```
 
-After above steps you can open Vault GUI from Firefox browser and log in using root token
+After above steps you can open Vault GUI from Firefox browser and log in using root token.
+
+## Configure Vault 
+
+I'm are going to use selfsigned customer certificate, so /etc/vauld.d/vault.hcl need modification:
+```text
+ # HTTPS listener
+listener "tcp" {
+  address       = "0.0.0.0:8200"
+  tls_cert_file = "/opt/vault/tls/custom.crt"
+  tls_key_file  = "/opt/vault/tls/custom.key"
+}
+```
 
