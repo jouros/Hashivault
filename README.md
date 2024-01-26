@@ -139,6 +139,7 @@ $ socat TCP4-L:8300,fork,reuseaddr TCP4:127.0.0.1:8200
 
 After above steps you can open Vault GUI from Firefox browser and log in using root token.
 
+
 ## Configure Vault 
 
 I'm are going to use selfsigned customer certificate, so /etc/vauld.d/vault.hcl need modification:
