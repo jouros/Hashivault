@@ -16,6 +16,14 @@ vault@hashivault:~$ id
 uid=1001(vault) gid=1002(vault) groups=1002(vault),100(users)
 ```
 
+Preparing hashi repo for Ubuntu cloudimage seed config:
+```text
+wget https://apt.releases.hashicorp.com/gpg -O hashi.key
+gpg --list-packets hashi.key | awk '/keyid:/{ print $2 }'
+AA16FCBCA621E701
+706E668369C085E9
+```
+
 ## Test Vault in Dev mode
 
 Dev Mode run in shell foreground:
