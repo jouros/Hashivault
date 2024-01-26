@@ -150,7 +150,7 @@ After above steps you can open Vault GUI from Firefox browser and log in using r
 
 ## Configure Vault 
 
-I'm are going to use selfsigned customer certificate, so /etc/vauld.d/vault.hcl need modification:
+I'm are going to use selfsigned custom certificate, so /etc/vauld.d/vault.hcl need modification:
 ```text
  # HTTPS listener
 listener "tcp" {
