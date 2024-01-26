@@ -1,0 +1,76 @@
+#cloud-config
+version: 1
+hostname: hashivault 
+users:
+  - name: management
+    groups: adm, users, wheel, sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    passwd: "$6$AU5GMsMLQMG1Jd9B$WOQxgyz2xlCnbfCZHueyTXCKbVGYhbggxyDQq8ucCxFOdQ/LZRMVYmvtIJWDy16aRAYPb7RMNq.StHC1gETBK/"
+    ssh_authorized_keys:
+      - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQD0cX/EUq8+/+SrcmmXFi5O6Y0s3MvzXDRch5obQcmzUxGTHXZ06tE0dqj/iRJNKUSc8V4jma0BX3PGb2QLthOJWpOB/vangkRbG7UdVzELC7T9qu6ip/J3Mo7kSs3FSSJpbb9MrwIFvEm+6mmEObTj+wKg9m4sQmooZQctbAY8bkdoiQo8iPP+gdn5Z50myC0FArNb+hTFrpsn7IB3o77dRZmJz1q1U1vUHS60Iwb8j+LWygh3RgLASgNCZrl6Cdr9S5pg0Llszuykr68iiVpIB1ARZsjY6jbdvjy1hyIgOV5UPAhqvOQMJfPWEfa1d5iTr7D3UH/bkkkYXcyDC7UD/izm/1iIdBOvqJz/r3EpaCtCYmAvkn1dW4uF0M9znSniiJEdnLcEHDXPtSFpWfWNKXRYUDQptRalX1Dy/59WUNnc2zdMH0aYja4EgyaNgQbYOzB7xw4wu7uqZ/0RYwaFvSryS9B08Wj9SDEoWKOJyTuBfJjLst9+WnTDed0DO8s= joro@LAPTOP-2H8O5P68"
+  - name: vault 
+    groups: users
+    shell: /bin/bash
+    lock_passwd: false 
+    passwd: "$6$AU5GMsMLQMG1Jd9B$WOQxgyz2xlCnbfCZHueyTXCKbVGYhbggxyDQq8ucCxFOdQ/LZRMVYmvtIJWDy16aRAYPb7RMNq.StHC1gETBK/"
+locale: C.UTF-8 
+package_update: true
+package_upgrade: true
+package_reboot_if_required: false
+packages:
+  - git
+  - openssh-server
+  - nfs-common
+  - python3-pip
+  - jq
+  - acl
+  - acct
+  - tree
+  - net-tools
+  - gnupg2
+  - expect
+  - apt-transport-https
+  - software-properties-common
+  - ca-certificates
+  - curl
+  - uidmap
+  - aria2
+  - qemu-guest-agent
+apt:
+  sources:
+    hashi.list:
+      source: "deb [arch=amd64 signed-by=$KEY_FILE] https://apt.releases.hashicorp.com jammy main"
+      keyid: AA16FCBCA621E701 
+      keyserver: "https://apt.releases.hashicorp.com/gpg"
+keyboard:
+  layout: fi
+timezone: Europe/Helsinki
+swap:
+  filename: /swap.img
+  size: auto
+  maxsize: 10485760
+write_files:
+  - path: /home/management/huuhaa.tzt
+    content: |
+      one 
+      two 
+    owner: root:root 
+    permissions: '0644'
+runcmd:
+  - systemctl start qemu-guest-agent # Agent can not be enabled
+  - apt-get update
+  - apt install -y vault 
+  - apt-mark hold vault 
+final_message: |
+  cloud-init has finished
+  version: $version
+  timestamp: $timestamp
+  datasource: $datasource
+  uptime: $uptime
+power_state:
+  delay: now
+  mode: reboot
+  message: Bye Bye
+  condition: true
