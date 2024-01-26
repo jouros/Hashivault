@@ -72,12 +72,6 @@ Cluster ID      2c6d6bbb-51cc-acae-a86c-3202c82dc493
 HA Enabled      false
 ```
 
-Important things to notice at this point:
-'Unseal Key'
-'Root Token'
-'Initialized     true'
-'Sealed          false'
-
 Test key - value secret storage: 
 ```text
 vault@hashivault:~$ vault secrets list
@@ -118,4 +112,10 @@ Key          Value
 testvalue    pancake
 ```
 
-
+Important things to notice at this point:
+```text
+'Unseal Key'
+'Root Token'
+'Initialized     true'
+'Sealed          false'
+```
