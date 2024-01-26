@@ -124,3 +124,18 @@ Important things to notice at this point:
 'Initialized     true'   Vault has started
 'Sealed          false'  Vault secrets are in system memory and available for requests
 ```
+
+Vault is listening localhost, so lets have a redirect: 
+```
+vault@hashivault:~$ socat TCP4-L:8300,fork,reuseaddr TCP4:TCP4:127.0.0.1:8200
+```
+
+Remote test from WSL2 Ubuntu, first lets install Firefox, WSL2 has direct X support:
+```text
+# snap install firefox
+firefox 122.0-2 from Mozilla✓ installed
+$ firefox &
+```
+
+After above steps you can open Vault GUI from Firefox browser and log in using root token
+
