@@ -2,6 +2,8 @@
 
 In this demo lab I will focus on Kubernetes integration for Hashicorp Vault, this is not production ready deployment e.g. secrets persistent storage is not configured. 
 
+This demo is installed on WSL2
+
 Ubuntu cloud init will deploy Hashi vault and 'vault' regular user account. For Ansible I have deployed 'management' user account with sudo, example below: 
 
 ```text
