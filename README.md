@@ -1,5 +1,6 @@
 # Hashivault
-Kubernetes integration for Hashicorp Vault
+
+In this demo lab I will focus on Kubernetes integration for Hashicorp Vault, this is not production ready deployment e.g. secrets persistent storage is not configured. 
 
 Ubuntu cloud init will deploy Hashi vault and 'vault' regular user account. For Ansible I have deployed 'management' user account with sudo, example below: 
 
@@ -114,8 +115,10 @@ testvalue    pancake
 
 Important things to notice at this point:
 ```text
-'Unseal Key'
-'Root Token'
-'Initialized     true'
-'Sealed          false'
+'Seal Type       shamir' Seal type Shamir means that 'Unseal Key' is split into 'Total Shares' amount of keys. In Dev mode only only one key. 
+'Total Shares    1'      How many parts 'Unseal Key' has
+'Unseal Key'             Key to open Vault before serving requests                 
+'Root Token'             root authentication token         
+'Initialized     true'   Vault has started
+'Sealed          false'  Vault secrets are in system memory and available for requests
 ```
