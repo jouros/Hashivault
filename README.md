@@ -244,32 +244,33 @@ drwxr-xr-x 3 root  root  4096 Jan 17 16:27 .cache
 
 ## Start Vault
 
-Start Vault: systemctl start vault
+Start Vault: 
 
 ```text
+# systemctl start vault
+# systemctl enable vault
 # systemctl status vault --no-pager
 ● vault.service - "HashiCorp Vault - A tool for managing secrets"
-     Loaded: loaded (/lib/systemd/system/vault.service; disabled; vendor preset: enabled)
-     Active: active (running) since Mon 2024-01-29 17:15:06 EET; 3min 6s ago
+     Loaded: loaded (/lib/systemd/system/vault.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2024-01-29 17:36:09 EET; 12min ago
        Docs: https://developer.hashicorp.com/vault/docs
-   Main PID: 8681 (vault)
+   Main PID: 8867 (vault)
       Tasks: 7 (limit: 1101)
-     Memory: 94.6M
-        CPU: 139ms
+     Memory: 96.0M
+        CPU: 351ms
      CGroup: /system.slice/vault.service
-             └─8681 /usr/bin/vault server -config=/etc/vault.d/vault.hcl
+             └─8867 /usr/bin/vault server -config=/etc/vault.d/vault.hcl
 
-Jan 29 17:15:06 hashivault vault[8681]:            Recovery Mode: false
-Jan 29 17:15:06 hashivault vault[8681]:                  Storage: file
-Jan 29 17:15:06 hashivault vault[8681]:                  Version: Vault v1.15.4, built 2023-12-04T17:45:28Z
-Jan 29 17:15:06 hashivault vault[8681]:              Version Sha: 9b61934559ba31150860e618cf18e816cbddc630
-Jan 29 17:15:06 hashivault vault[8681]: ==> Vault server started! Log data will stream in below:
-Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.520+0200 [INFO]  proxy environment: http_proxy="" https_proxy="" no_proxy=""
-Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.520+0200 [INFO]  incrementing seal generation: generation=1
-Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.545+0200 [INFO]  core: Initializing version history cache for core
-Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.545+0200 [INFO]  events: Starting event system
-Jan 29 17:15:06 hashivault systemd[1]: Started "HashiCorp Vault - A tool for managing secrets".
-#
+Jan 29 17:36:09 hashivault vault[8867]: ==> Vault server started! Log data will stream in below:
+Jan 29 17:36:09 hashivault vault[8867]: 2024-01-29T17:36:09.805+0200 [INFO]  proxy environment: http_proxy="" https_proxy="" no_proxy=""
+Jan 29 17:36:09 hashivault vault[8867]: 2024-01-29T17:36:09.805+0200 [INFO]  incrementing seal generation: generation=1
+Jan 29 17:36:09 hashivault vault[8867]: 2024-01-29T17:36:09.832+0200 [INFO]  core: Initializing version history cache for core
+Jan 29 17:36:09 hashivault vault[8867]: 2024-01-29T17:36:09.832+0200 [INFO]  events: Starting event system
+Jan 29 17:36:09 hashivault systemd[1]: Started "HashiCorp Vault - A tool for managing secrets".
+Jan 29 17:40:44 hashivault vault[8867]: 2024-01-29T17:40:44.210+0200 [INFO]  core: security barrier not initialized
+Jan 29 17:40:44 hashivault vault[8867]: 2024-01-29T17:40:44.210+0200 [INFO]  core: seal configuration missing, not initialized
+Jan 29 17:41:54 hashivault vault[8867]: 2024-01-29T17:41:54.167+0200 [INFO]  core: security barrier not initialized
+Jan 29 17:41:54 hashivault vault[8867]: 2024-01-29T17:41:54.168+0200 [INFO]  core: seal configuration missing, not initialized
 #
 #  netstat -anp -A inet | grep 8200
 tcp        0      0 127.0.0.1:8200          0.0.0.0:*               LISTEN      8867/vault
