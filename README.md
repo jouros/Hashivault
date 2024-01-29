@@ -150,13 +150,173 @@ After above steps you can open Vault GUI from Firefox browser and log in using r
 
 ## Configure Vault 
 
-I'm are going to use selfsigned custom certificate, so /etc/vauld.d/vault.hcl need modification:
+/etc/vault.d/vault.hcl:
 ```text
- # HTTPS listener
+# cat vault.hcl
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
+# Full configuration options can be found at https://developer.hashicorp.com/vault/docs/configuration
+
+ui = true
+disable_clustering = true
+api_addr           = "https://102.168.122.14:8200"
+
+#mlock = true
+#disable_mlock = true
+
+storage "file" {
+  path = "/opt/vault/data"
+}
+
+#storage "consul" {
+#  address = "127.0.0.1:8500"
+#  path    = "vault"
+#}
+
+# HTTP listener
 listener "tcp" {
-  address       = "0.0.0.0:8200"
+  address       = "127.0.0.1:8200"
+  tls_disable   = 1
+}
+
+# HTTPS listener
+listener "tcp" {
+  address       = "192.168.122.14:8200"
   tls_cert_file = "/opt/vault/tls/custom.crt"
   tls_key_file  = "/opt/vault/tls/custom.key"
+  tls_min_version = "tls12"
+  tls_client_ca_file = "/opt/vault/tls/rootCA.crt"
+  telemetry {
+    unauthenticated_metrics_access = "true"
+  }
 }
+
+# Enterprise license_path
+# This will be required for enterprise as of v1.8
+#license_path = "/etc/vault.d/vault.hclic"
+
+# Example AWS KMS auto unseal
+#seal "awskms" {
+#  region = "us-east-1"
+#  kms_key_id = "REPLACE-ME"
+#}
+
+# Example HSM auto unseal
+#seal "pkcs11" {
+#  lib            = "/usr/vault/lib/libCryptoki2_64.so"
+#  slot           = "0"
+#  pin            = "AAAA-BBBB-CCCC-DDDD"
+#  key_label      = "vault-hsm-key"
+#  hmac_key_label = "vault-hsm-hmac-key"
+#}
 ```
 
+
+```text
+$ openssl x509 -in custom.crt -noout -text
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            5b:a9:68:65:1d:f4:ea:a1:1e:10:d3:15:bc:7f:1a:6d:17:7a:06:38
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = hashivault.jrc.local, C = FI, L = HELSINKI
+        Validity
+            Not Before: Jan 29 13:36:37 2024 GMT
+            Not After : Jan 27 13:36:37 2029 GMT
+        Subject: C = FI, ST = Helsinki, L = Helsinki, O = jrc, OU = jrc, CN = hashivault.jrc.local
+```
+
+Crt and Key files are copied into /opt/vault/tls:
+```text
+/opt/vault/tls# ls -la
+total 32
+drwx------ 3 vault vault 4096 Jan 29 17:34 .
+drwxr-xr-x 4 vault vault 4096 Jan 17 16:27 ..
+drwxr-xr-x 3 root  root  4096 Jan 17 16:27 .cache
+-rw------- 1 vault vault 2082 Jan 29 15:36 custom.crt
+-rw------- 1 vault vault 3268 Jan 29 15:35 custom.key
+-rw------- 1 vault vault 1923 Jan 29 15:35 rootCA.crt
+-rw------- 1 vault vault 1850 Jan 17 16:27 tls.crt
+-rw------- 1 vault vault 3272 Jan 17 16:27 tls.key
+```
+
+## Start Vault
+
+Start Vault: systemctl start vault
+
+```text
+# systemctl status vault --no-pager
+● vault.service - "HashiCorp Vault - A tool for managing secrets"
+     Loaded: loaded (/lib/systemd/system/vault.service; disabled; vendor preset: enabled)
+     Active: active (running) since Mon 2024-01-29 17:15:06 EET; 3min 6s ago
+       Docs: https://developer.hashicorp.com/vault/docs
+   Main PID: 8681 (vault)
+      Tasks: 7 (limit: 1101)
+     Memory: 94.6M
+        CPU: 139ms
+     CGroup: /system.slice/vault.service
+             └─8681 /usr/bin/vault server -config=/etc/vault.d/vault.hcl
+
+Jan 29 17:15:06 hashivault vault[8681]:            Recovery Mode: false
+Jan 29 17:15:06 hashivault vault[8681]:                  Storage: file
+Jan 29 17:15:06 hashivault vault[8681]:                  Version: Vault v1.15.4, built 2023-12-04T17:45:28Z
+Jan 29 17:15:06 hashivault vault[8681]:              Version Sha: 9b61934559ba31150860e618cf18e816cbddc630
+Jan 29 17:15:06 hashivault vault[8681]: ==> Vault server started! Log data will stream in below:
+Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.520+0200 [INFO]  proxy environment: http_proxy="" https_proxy="" no_proxy=""
+Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.520+0200 [INFO]  incrementing seal generation: generation=1
+Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.545+0200 [INFO]  core: Initializing version history cache for core
+Jan 29 17:15:06 hashivault vault[8681]: 2024-01-29T17:15:06.545+0200 [INFO]  events: Starting event system
+Jan 29 17:15:06 hashivault systemd[1]: Started "HashiCorp Vault - A tool for managing secrets".
+#
+#
+#  netstat -anp -A inet | grep 8200
+tcp        0      0 0.0.0.0:8200            0.0.0.0:*               LISTEN      8681/vault
+```
+
+Network test with curl:
+```text
+$ curl -k https://192.168.122.14:8200/v1/sys/seal-status
+{"type":"shamir","initialized":false,"sealed":true,"t":0,"n":0,"progress":0,"nonce":"","version":"1.15.4","build_date":"2023-12-04T17:45:28Z","migration":false,"recovery_seal":false,"storage_type":"file"}
+```
+
+In my vault.hcl config I have both http and https listeners configured, http I'm going to user internally to localhost and https from outside:
+```
+vault@hashivault:~$ id
+uid=1001(vault) gid=1002(vault) groups=1002(vault),100(users)
+vault@hashivault:~$ export VAULT_ADDR="http://127.0.0.1:8200"
+vault@hashivault:~$ echo $VAULT_ADDR
+http://127.0.0.1:8200
+vault@hashivault:~$ vault status
+Key                Value
+---                -----
+Seal Type          shamir
+Initialized        false
+Sealed             true
+Total Shares       0
+Threshold          0
+Unseal Progress    0/0
+Unseal Nonce       n/a
+Version            1.15.4
+Build Date         2023-12-04T17:45:28Z
+Storage Type       file
+HA Enabled         false
+vault@hashivault:~$ export VAULT_ADDR="https://192.168.122.14:8200"
+vault@hashivault:~$ echo $VAULT_ADDR
+https://192.168.122.14:8200
+vault@hashivault:~$ vault status -ca-path=/opt/vault/tls/rootCA.crt
+Key                Value
+---                -----
+Seal Type          shamir
+Initialized        false
+Sealed             true
+Total Shares       0
+Threshold          0
+Unseal Progress    0/0
+Unseal Nonce       n/a
+Version            1.15.4
+Build Date         2023-12-04T17:45:28Z
+Storage Type       file
+HA Enabled         false
+```
