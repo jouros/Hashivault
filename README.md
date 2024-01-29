@@ -283,7 +283,7 @@ $ curl -k https://192.168.122.14:8200/v1/sys/seal-status
 {"type":"shamir","initialized":false,"sealed":true,"t":0,"n":0,"progress":0,"nonce":"","version":"1.15.4","build_date":"2023-12-04T17:45:28Z","migration":false,"recovery_seal":false,"storage_type":"file"}
 ```
 
-In my vault.hcl config I have both http and https listeners configured, http I'm going to user internally to localhost and https from outside:
+In my vault.hcl config I have both http and https listeners configured, http I'm going to use internally to localhost and https from outside:
 ```
 vault@hashivault:~$ id
 uid=1001(vault) gid=1002(vault) groups=1002(vault),100(users)
