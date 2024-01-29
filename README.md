@@ -272,7 +272,8 @@ Jan 29 17:15:06 hashivault systemd[1]: Started "HashiCorp Vault - A tool for man
 #
 #
 #  netstat -anp -A inet | grep 8200
-tcp        0      0 0.0.0.0:8200            0.0.0.0:*               LISTEN      8681/vault
+tcp        0      0 127.0.0.1:8200          0.0.0.0:*               LISTEN      8867/vault
+tcp        0      0 192.168.122.14:8200     0.0.0.0:*               LISTEN      8867/vault
 ```
 
 Network test with curl:
