@@ -281,6 +281,8 @@ Network test with curl:
 ```text
 $ curl -k https://192.168.122.14:8200/v1/sys/seal-status
 {"type":"shamir","initialized":false,"sealed":true,"t":0,"n":0,"progress":0,"nonce":"","version":"1.15.4","build_date":"2023-12-04T17:45:28Z","migration":false,"recovery_seal":false,"storage_type":"file"}
+$ curl --cacert rootCA.crt 'https://192.168.122.14:8200/v1/sys/seal-status'
+{"type":"shamir","initialized":false,"sealed":true,"t":0,"n":0,"progress":0,"nonce":"","version":"1.15.4","build_date":"2023-12-04T17:45:28Z","migration":false,"recovery_seal":false,"storage_type":"file"}
 ```
 
 In my vault.hcl config I have both http and https listeners configured, http I'm going to use internally to localhost and https from outside:
@@ -322,3 +324,113 @@ Build Date         2023-12-04T17:45:28Z
 Storage Type       file
 HA Enabled         false
 ```
+
+## Initialize Vault
+
+Check Vault status:
+```text
+$ vault operator init -status
+Vault is not initialized
+```
+
+I'll initialize Vault with three key shares, which mean that unseal key is split into three parts. Key treshold mean how many key parts is needed to construct root key:
+```text
+$ vault operator init -key-shares=3 -key-threshold=2
+Unseal Key 1: 5PNLW3Sx...
+Unseal Key 2: lC7c2nHi...
+Unseal Key 3: 81wkeXM1...
+
+Initial Root Token: hvs.XVc...
+
+Vault initialized with 3 key shares and a key threshold of 2. Please securely
+distribute the key shares printed above. When the Vault is re-sealed,
+restarted, or stopped, you must supply at least 2 of these keys to unseal it
+before it can start servicing requests.
+
+Vault does not store the generated root key. Without at least 2 keys to
+reconstruct the root key, Vault will remain permanently sealed!
+
+It is possible to generate new unseal keys, provided you have a quorum of
+existing unseal keys shares. See "vault operator rekey" for more information.
+```
+
+Check Vault status again:
+```text
+$ vault operator init -status
+Vault is initialized
+```
+
+## Unseal Vault for allowing its use
+
+In the beginning Vault is sealed:
+```text
+$ vault status
+Key                Value
+---                -----
+Seal Type          shamir
+Initialized        true
+Sealed             true
+Total Shares       3
+Threshold          2
+Unseal Progress    0/2
+Unseal Nonce       n/a
+Version            1.15.4
+Build Date         2023-12-04T17:45:28Z
+Storage Type       file
+HA Enabled         false
+```
+
+Unseal with two keys and notice 'Unseal Progress' info:
+```text
+$ vault operator unseal
+Unseal Key (will be hidden):
+Key                Value
+---                -----
+Seal Type          shamir
+Initialized        true
+Sealed             true
+Total Shares       3
+Threshold          2
+Unseal Progress    1/2
+Unseal Nonce       4ab073a0-dc53-c347-a480-d4baa37db660
+Version            1.15.4
+Build Date         2023-12-04T17:45:28Z
+Storage Type       file
+HA Enabled         false
+```
+
+Again with second key:
+```text
+$ vault operator unseal
+Unseal Key (will be hidden):
+Key             Value
+---             -----
+Seal Type       shamir
+Initialized     true
+Sealed          false
+Total Shares    3
+Threshold       2
+Version         1.15.4
+Build Date      2023-12-04T17:45:28Z
+Storage Type    file
+Cluster Name    vault-cluster-09fa5d16
+Cluster ID      72fb83bd-8e20-3a2b-f874-1ed68a197c50
+HA Enabled      false
+```
+
+In my demo Lab Vault is using default file backend srorage, do not use file storage for any serious use. If you want file backend, you can use raft backend which has ommand for taking snapshot of storage for backup. My config is just for testing Vault functionality:
+```text
+In /etc/vault.d/vault.hcl:
+storage "file" {
+  path = "/opt/vault/data"
+}
+
+$ ls -la /opt/vault/data/
+total 20
+drwxr-xr-x 5 vault vault 4096 Jan 30 13:12 .
+drwxr-xr-x 4 vault vault 4096 Jan 17 16:27 ..
+drwx------ 6 vault vault 4096 Jan 30 13:31 core
+drwx------ 3 vault vault 4096 Jan 30 13:12 logical
+drwx------ 4 vault vault 4096 Jan 30 13:12 sys
+```
+
