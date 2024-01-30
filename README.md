@@ -418,7 +418,7 @@ Cluster ID      72fb83bd-8e20-3a2b-f874-1ed68a197c50
 HA Enabled      false
 ```
 
-In my demo Lab Vault is using default file backend srorage, do not use file storage for any serious use. If you want file backend, you can use raft backend which has ommand for taking snapshot of storage for backup. My config is just for testing Vault functionality:
+In my demo Lab Vault is using default file backend srorage, do not use file storage for any serious use. If you want file backend, you can use raft which has ommand for taking snapshot of storage for backup. My config is just for testing Vault integration to K8s:
 ```text
 In /etc/vault.d/vault.hcl:
 storage "file" {
@@ -434,3 +434,67 @@ drwx------ 3 vault vault 4096 Jan 30 13:12 logical
 drwx------ 4 vault vault 4096 Jan 30 13:12 sys
 ```
 
+## Test remote Vault login with root token
+
+```text
+# curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -
+# apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+# apt update
+# apt install -y vault
+# vault --version
+Vault v1.15.4 (9b61934559ba31150860e618cf18e816cbddc630), built 2023-12-04T17:45:28Z
+$ export VAULT_ADDR="https://192.168.122.14:8200"
+$ echo $VAULT_ADDR
+https://192.168.122.14:8200
+$ vault login -ca-path=./rootCA.crt
+Token (will be hidden):
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                  Value
+---                  -----
+token                hvs.XVc0QbzWH0wLrCQTu2spWA28
+token_accessor       6rvQaRyeE6drZbeuQGFnAUzQ
+token_duration       ∞
+token_renewable      false
+token_policies       ["root"]
+identity_policies    []
+policies             ["root"]
+```
+
+Above login will store credential here:
+```text
+$ cat ~/.vault-token
+hvs.XVc0QbzW...
+```
+
+After login credentials are stored in a file, so they are not requested for next cmd. Lets change output format for remote connection:
+```text
+$ export VAULT_FORMAT="json"
+$ echo $VAULT_FORMAT
+json
+$ vault status -ca-path=./rootCA.crt
+{
+  "type": "shamir",
+  "initialized": true,
+  "sealed": false,
+  "t": 2,
+  "n": 3,
+  "progress": 0,
+  "nonce": "",
+  "version": "1.15.4",
+  "build_date": "2023-12-04T17:45:28Z",
+  "migration": false,
+  "cluster_name": "vault-cluster-09fa5d16",
+  "cluster_id": "72fb83bd-8e20-3a2b-f874-1ed68a197c50",
+  "recovery_seal": false,
+  "storage_type": "file",
+  "ha_enabled": false,
+  "active_time": "0001-01-01T00:00:00Z"
+}
+```
+
+## Configure vault
+
+sdasd
