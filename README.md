@@ -469,7 +469,7 @@ $ cat ~/.vault-token
 hvs.XVc0QbzW...
 ```
 
-After login credentials are stored in a file, so they are not requested for next cmd. Lets change output format for remote connection:
+After login credentials are stored in a file, so they are not requested for next cmd. Lets change output format for remote connection to separate remote and local operations:
 ```text
 $ export VAULT_FORMAT="json"
 $ echo $VAULT_FORMAT
@@ -495,6 +495,20 @@ $ vault status -ca-path=./rootCA.crt
 }
 ```
 
-## Configure vault
+## Vault KV secrets engine V2
 
-sdasd
+Enable V2 secrets Key - Value- engine. V2 means that secrets will have version history you can revert to:
+```text
+$ vault secrets list
+Path          Type         Accessor              Description
+----          ----         --------              -----------
+cubbyhole/    cubbyhole    cubbyhole_4ffe3caa    per-token private secret storage
+identity/     identity     identity_ec902b7d     identity store
+sys/          system       system_d4b28570       system endpoints used for control, policy and debugging
+$
+```
+
+
+## Configure Vault Policy
+
+
