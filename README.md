@@ -612,6 +612,10 @@ $ cat /etc/vault.d/policy1.hcl
 path "devops/data/{{identity.entity.id}}/*" {
   capabilities = ["read", "update", "delete", "create", "list"]
 }
+
+path "devops/data/mysecret" {
+  capabilities = ["read"]
+}
 $
 $ vault policy write devopsadmin /etc/vault.d/policy1.hcl
 Success! Uploaded policy: devopsadmin
@@ -624,6 +628,10 @@ $
 $ vault policy read devopsadmin
 path "devops/data/{{identity.entity.id}}/*" {
   capabilities = ["read", "update", "delete", "create", "list"]
+}
+
+path "devops/data/mysecret" {
+  capabilities = ["read"]
 }
 ```
 
