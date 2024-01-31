@@ -585,7 +585,7 @@ foo    b
 $
 $ vault kv get -mount=devops -version=1 mysecret
 ==== Secret Path ====
-`devops/data/mysecret`
+<mark>devops/data/mysecret</mark>
 
 ======= Metadata =======
 Key                Value
