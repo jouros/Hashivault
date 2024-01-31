@@ -603,8 +603,44 @@ foo    a
 ```
 
 
-## Configure Vault Policy
+## Configure Vault Policy and auth method
 
-In previous example, real path for mysecret is `devops/data/mysecret`
+In previous example, real path for mysecret is `devops/data/mysecret`. Lets create policy for DevOps Admin with permissions to read, update, delete and create secrets:
 
-Next I'll create admin role for reading and changing above value:
+```text
+$ cat /etc/vault.d/policy1.hcl
+path "devops/data" {
+  capabilities = ["read", "update", "delete", "create"]
+}
+$
+$ vault policy write devopsadmin /etc/vault.d/policy1.hcl
+Success! Uploaded policy: devopsadmin
+$
+$ vault policy list
+default
+devopsadmin
+root
+$
+$ vault policy read devopsadmin
+path "devops/data" {
+  capabilities = ["read", "update", "delete", "create"]
+}
+```
+
+Next I'll create Approle:
+```text
+$ vault auth list
+Path      Type     Accessor               Description                Version
+----      ----     --------               -----------                -------
+token/    token    auth_token_751e8ae6    token based credentials    n/a
+$
+$ vault auth enable -path=devops/ -description="DevOps Admin credentials" approle
+Success! Enabled approle auth method at: devops/
+$
+$ vault auth list
+Path       Type       Accessor                 Description                 Version
+----       ----       --------                 -----------                 -------
+devops/    approle    auth_approle_c0473ce8    DevOps Admin credentials    n/a
+token/     token      auth_token_751e8ae6      token based credentials     n/a
+```
+
