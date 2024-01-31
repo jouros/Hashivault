@@ -609,8 +609,8 @@ In previous example, real path for mysecret is `devops/data/mysecret`. Lets crea
 
 ```text
 $ cat /etc/vault.d/policy1.hcl
-path "devops/data" {
-  capabilities = ["read", "update", "delete", "create"]
+path "devops/data/{{identity.entity.id}}/*" {
+  capabilities = ["read", "update", "delete", "create", "list"]
 }
 $
 $ vault policy write devopsadmin /etc/vault.d/policy1.hcl
@@ -622,10 +622,12 @@ devopsadmin
 root
 $
 $ vault policy read devopsadmin
-path "devops/data" {
-  capabilities = ["read", "update", "delete", "create"]
+path "devops/data/{{identity.entity.id}}/*" {
+  capabilities = ["read", "update", "delete", "create", "list"]
 }
 ```
+
+Approle is role that allows machines or apps to authenticate with vault roles. For this role I can allow access based on token for which I can give time to live and renew time to live parameters which means I have full control of time period for which I allow secrets modification. In this case I will use approle for DevOps admin user for fine-grained access control. 
 
 Next I'll create Approle:
 ```text
