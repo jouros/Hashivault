@@ -605,7 +605,7 @@ foo    a
 
 ## Configure Vault Policy and auth method
 
-In previous example, real path for mysecret is `devops/data/mysecret`. Lets create policy for DevOps Admin with permissions to read, update, delete and create secrets:
+In previous example, real path for mysecret is `devops/data/mysecret`. Lets create policy for DevOps Admin with permissions to read, update, delete, create and list secrets:
 
 ```text
 $ cat /etc/vault.d/policy1.hcl
