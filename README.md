@@ -497,7 +497,7 @@ $ vault status -ca-path=./rootCA.crt
 
 ## Vault KV secrets engine V2
 
-Enable V2 secrets Key - Value- engine. V2 means that secrets will have version history you can revert to:
+Enable V2 secrets Key - Value- engine. V2 means that secrets will have version history you can revert to. Lets create kv (Key Value) secrets storage for path 'devops' and store kv foo=a, change that with foo=b, read current value (b) and read value from version=1 (a):
 ```text
 $ vault secrets list
 Path          Type         Accessor              Description
@@ -506,6 +506,100 @@ cubbyhole/    cubbyhole    cubbyhole_4ffe3caa    per-token private secret storag
 identity/     identity     identity_ec902b7d     identity store
 sys/          system       system_d4b28570       system endpoints used for control, policy and debugging
 $
+$ vault secrets enable -version=2 -path=devops/ kv
+Success! Enabled the kv secrets engine at: devops/
+$
+$ vault secrets list
+Path          Type         Accessor              Description
+----          ----         --------              -----------
+cubbyhole/    cubbyhole    cubbyhole_4ffe3caa    per-token private secret storage
+devops/       kv           kv_dfdf5534           n/a
+identity/     identity     identity_ec902b7d     identity store
+sys/          system       system_d4b28570       system endpoints used for control, policy and debugging
+```
+```
+
+Lets pur and read key value secret:
+```text
+$ vault kv put -mount=devops mysecret foo=a
+==== Secret Path ====
+devops/data/mysecret
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-01-31T12:43:17.831300231Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            1
+$
+$ vault kv get -mount=devops mysecret
+==== Secret Path ====
+devops/data/mysecret
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-01-31T12:43:17.831300231Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            1
+
+=== Data ===
+Key    Value
+---    -----
+foo    a
+$
+$ vault kv put -mount=devops mysecret foo=b
+==== Secret Path ====
+devops/data/mysecret
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-01-31T12:45:14.575189063Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            2
+$
+$ vault kv get -mount=devops mysecret
+==== Secret Path ====
+devops/data/mysecret
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-01-31T12:45:14.575189063Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            2
+
+=== Data ===
+Key    Value
+---    -----
+foo    b
+$
+$ vault kv get -mount=devops -version=1 mysecret
+==== Secret Path ====
+devops/data/mysecret
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-01-31T12:43:17.831300231Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            1
+
+=== Data ===
+Key    Value
+---    -----
+foo    a
 ```
 
 
