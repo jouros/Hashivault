@@ -654,3 +654,31 @@ devops/    approle    auth_approle_c0473ce8    DevOps Admin credentials    n/a
 token/     token      auth_token_751e8ae6      token based credentials     n/a
 ```
 
+Here I set token TTL for created role 'devopsadminrole' and bind it to 'devopsadmin' policy:
+```text
+$ vault write auth/devops/role/devopsadminrole token_policies="devopsadmin" token_ttl=2h token-max_ttl=6h
+Success! Data written to: auth/devops/role/devopsadminrole
+$
+$ vault list auth/devops/role
+Keys
+----
+devopsadminrole
+$
+$ vault read auth/devops/role/devopsadminrole
+Key                        Value
+---                        -----
+bind_secret_id             true
+local_secret_ids           false
+secret_id_bound_cidrs      <nil>
+secret_id_num_uses         0
+secret_id_ttl              0s
+token_bound_cidrs          []
+token_explicit_max_ttl     0s
+token_max_ttl              0s
+token_no_default_policy    false
+token_num_uses             0
+token_period               0s
+token_policies             [devopsadmin]
+token_ttl                  2h
+token_type                 default
+```
