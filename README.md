@@ -585,7 +585,7 @@ foo    b
 $
 $ vault kv get -mount=devops -version=1 mysecret
 ==== Secret Path ====
-devops/data/mysecret
+`devops/data/mysecret`
 
 ======= Metadata =======
 Key                Value
@@ -605,4 +605,6 @@ foo    a
 
 ## Configure Vault Policy
 
+In previous example, real path for mysecret is devops/data/mysecret
 
+Next I'll create admin role for reading and changing above value:
