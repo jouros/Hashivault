@@ -901,7 +901,7 @@ $ vault kv get -ca-cert rootCA.crt -mount=devops/ project1/secret2
 }
 ```
 
-For being able to list all secrets in a path, we have make metadata addition to policy:
+For being able to list all secrets in a path, I'll have make metadata addition to policy:
 ```text
 path "devops/metadata/project1/*" {
   capabilities = ["list", "delete"]
