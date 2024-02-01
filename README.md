@@ -609,7 +609,7 @@ In previous example, real path for mysecret is `devops/data/mysecret`. Lets crea
 
 ```text
 $ cat /etc/vault.d/policy1.hcl
-path "devops/data/{{identity.entity.id}}/*" {
+path "devops/data/project1/*" {
   capabilities = ["read", "update", "delete", "create", "list"]
 }
 
@@ -626,7 +626,7 @@ devopsadmin
 root
 $
 $ vault policy read devopsadmin
-path "devops/data/{{identity.entity.id}}/*" {
+path "devops/data/project1/*" {
   capabilities = ["read", "update", "delete", "create", "list"]
 }
 
@@ -654,7 +654,7 @@ devops/    approle    auth_approle_c0473ce8    DevOps Admin credentials    n/a
 token/     token      auth_token_751e8ae6      token based credentials     n/a
 ```
 
-Here I set token TTL for created role 'devopsadminrole' and bind it to 'devopsadmin' policy:
+Here I set token TTL 2h, max renewal time 6h for created role 'devopsadminrole' and bind it to 'devopsadmin' policy:
 ```text
 $ vault write auth/devops/role/devopsadminrole token_policies="devopsadmin" token_ttl=2h token-max_ttl=6h
 Success! Data written to: auth/devops/role/devopsadminrole
@@ -681,4 +681,240 @@ token_period               0s
 token_policies             [devopsadmin]
 token_ttl                  2h
 token_type                 default
+$
+$ vault read auth/devops/role/devopsadminrole/role-id
+Key        Value
+---        -----
+role_id    2e697b26-4cef-9e6f-e304-07237997ed08
+
+Add ip access control list to role, I'll add remote devOps admin host and Vault ip for local testing:
+```text
+$ vault write auth/devops/role/devopsadminrole/secret-id cidr_list=192.168.122.14/32,172.18.119.21/32
+Key                   Value
+---                   -----
+secret_id             e50ba2b6-d14d-9ebb-5d4a-ef93699fb375
+secret_id_accessor    907d4ff0-fdc8-0573-164f-c02d201ce8e2
+secret_id_num_uses    0
+secret_id_ttl         0s
+```
+
+Next I'll create access token, now I'll have to talk to correct ip addr and use ssl: 
+```text
+$ export VAULT_ADDR="https://192.168.122.14:8200"
+$
+$ vault write -ca-path=/opt/vault/tls/rootCA.crt auth/devops/login role_id="2e697b26-4cef-9e6f-e304-07237997ed08" secret_id="e50ba2b6-d14d-9ebb-5d4a-ef93699fb375"
+Key                     Value
+---                     -----
+token                   hvs.CAESINItjQ5I64Nhg-gVuxn61XsRfPWRouDGcNCGlhMEJDkaGh4KHGh2cy5wUTRoNW9VaUdaQUFwR3haZ2gybHRLU28
+token_accessor          zPu7urYKlR3oQtzeCIOU5GzP
+token_duration          2h
+token_renewable         true
+token_policies          ["default" "devopsadmin"]
+identity_policies       []
+policies                ["default" "devopsadmin"]
+token_meta_role_name    devopsadminrole
+```
+
+Above we have our token which is valid for 2h and can be renewed until 6h, lets have remote connection with new token:
+```text
+$ rm ~/.vault-token
+$
+$ vault login -ca-cert rootCA.crt
+Token (will be hidden):
+{
+  "request_id": "",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": null,
+  "warnings": null,
+  "auth": {
+    "client_token": "hvs.CAESINItjQ5I64Nhg-gVuxn61XsRfPWRouDGcNCGlhMEJDkaGh4KHGh2cy5wUTRoNW9VaUdaQUFwR3haZ2gybHRLU28",
+    "accessor": "zPu7urYKlR3oQtzeCIOU5GzP",
+    "policies": [
+      "default",
+      "devopsadmin"
+    ],
+    "token_policies": [
+      "default",
+      "devopsadmin"
+    ],
+    "identity_policies": null,
+    "metadata": {
+      "role_name": "devopsadminrole"
+    },
+    "orphan": false,
+    "entity_id": "",
+    "lease_duration": 6671,
+    "renewable": true,
+    "mfa_requirement": null
+  }
+}
+```
+
+Policy for this role was 'read' for mysecret which was set earlier, lets try to read it:
+```
+$ vault kv get -ca-cert rootCA.crt -mount=devops mysecret
+{
+  "request_id": "9aa85123-f866-ecea-49a6-8cea537221e1",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "data": {
+      "foo": "b"
+    },
+    "metadata": {
+      "created_time": "2024-01-31T12:45:14.575189063Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 2
+    }
+  },
+  "warnings": null
+}
+```
+
+Read was successfule as expected, lets try to change value which was not allowed operation:
+```text
+$ vault kv put -ca-cert rootCA.crt -mount=devops mysecret foo=c
+Error writing data to devops/data/mysecret: Error making API request.
+
+URL: PUT https://192.168.122.14:8200/v1/devops/data/mysecret
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+```
+
+Permission was denied as expected. Lets create new secret, read and update value: 
+```text
+$ vault kv put -ca-cert rootCA.crt -mount=devops/ project1/secret1 foo=bar
+{
+  "request_id": "4877ce61-5594-a1a2-edda-534995f594f0",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "created_time": "2024-02-01T14:25:22.082848656Z",
+    "custom_metadata": null,
+    "deletion_time": "",
+    "destroyed": false,
+    "version": 1
+  },
+  "warnings": null
+}
+$
+$ vault kv get -ca-cert rootCA.crt -mount=devops/ project1/secret1
+{
+  "request_id": "ee6800e3-d6fb-bcde-1c78-7d09bb60867a",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "data": {
+      "foo": "bar"
+    },
+    "metadata": {
+      "created_time": "2024-02-01T14:25:22.082848656Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  },
+  "warnings": null
+}
+$ vault kv put -ca-cert rootCA.crt -mount=devops/ project1/secret1 foo=barbar
+{
+  "request_id": "aecdc4b3-cb04-c4e1-853b-a0b46025891e",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "created_time": "2024-02-01T14:30:16.720983737Z",
+    "custom_metadata": null,
+    "deletion_time": "",
+    "destroyed": false,
+    "version": 2
+  },
+  "warnings": null
+}
+$
+$ vault kv get -ca-cert rootCA.crt -mount=devops/ project1/secret1
+{
+  "request_id": "9276d89b-be09-178f-8b5c-ab7a0620add8",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "data": {
+      "foo": "barbar"
+    },
+    "metadata": {
+      "created_time": "2024-02-01T14:30:16.720983737Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 2
+    }
+  },
+  "warnings": null
+}
+$
+$ vault kv put -ca-cert rootCA.crt -mount=devops/ project1/secret2 something=true
+{
+  "request_id": "676826a9-f64c-2537-8234-c51cc0529349",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "created_time": "2024-02-01T14:31:30.207742616Z",
+    "custom_metadata": null,
+    "deletion_time": "",
+    "destroyed": false,
+    "version": 1
+  },
+  "warnings": null
+}
+$
+$ vault kv get -ca-cert rootCA.crt -mount=devops/ project1/secret2
+{
+  "request_id": "4aaf35e4-84cd-cf56-8da1-87c5a930842d",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "data": {
+      "something": "true"
+    },
+    "metadata": {
+      "created_time": "2024-02-01T14:31:30.207742616Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 1
+    }
+  },
+  "warnings": null
+}
+
+For being able to list all secrets in a path, we have make addition to policy:
+```text
+path "devops/metadata/project1/*" {
+  capabilities = ["list", "delete"]
+}
+$
+$ vault policy write devopsadmin /etc/vault.d/policy1.hcl
+$ vault kv list -ca-cert rootCA.crt -mount=devops/ project1
+[
+  "secret1",
+  "secret2"
+]
+```
+
+Now 2h was used and token TTL is over, but there was renew period for 6h, lets renew remote token:
+```text
+sadassd
 ```
