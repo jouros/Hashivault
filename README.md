@@ -1043,12 +1043,7 @@ ttl                 16m20s
 type                service
 ```
 
-Time was 17:09 and expire time 17:24, so I'll still have about 15 minutes to wait until Token renewal case, time to make some coffee...
-
-Now 2h was used and token TTL is over, but there was renew period for 6h so lets renew token:
-```text
-sadassd
-```
+Time was 17:09 and expire time 17:24, so I still have about 15 minutes for Token renewal before Token is lost, Token has to renewed before it expires with `vault token renew -accessor xxxxx`
 
 To operate with secret id we have to use accessor, my current secret_id is referenced with `secret_id_accessor edbf5a51-dd47-a45e-c678-1adb9af005d0`, below I list accessors, get info about current secret_id and remove old:
 ```text
