@@ -1079,5 +1079,17 @@ Keys
 edbf5a51-dd47-a45e-c678-1adb9af005d0
 ```
 
+## Kubernetes Sidecar Agent injector
 
+sadasds
+
+
+### Vault configuration for Kubernetes
+
+asdsad
+
+
+### Kubernetes configuration for Vault
+
+asdssd
 
