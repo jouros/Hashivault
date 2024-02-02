@@ -417,6 +417,7 @@ Cluster Name    vault-cluster-09fa5d16
 Cluster ID      72fb83bd-8e20-3a2b-f874-1ed68a197c50
 HA Enabled      false
 ```
+Above unseal step have to done every time Vault is restarted. 
 
 In my demo Lab Vault is using default file backend srorage, do not use file storage for any serious use. If you want file backend, you can use raft which has ommand for taking snapshot of storage for backup. My config is just for testing Vault integration to K8s:
 ```text
@@ -687,15 +688,20 @@ Key        Value
 ---        -----
 role_id    2e697b26-4cef-9e6f-e304-07237997ed08
 
-Add ip access control list to role, I'll add remote devOps admin host and Vault ip for local testing:
+Add ip access control list to role, I'll add remote devOps admin host and Vault local ip to access control list:
 ```text
-$ vault write auth/devops/role/devopsadminrole/secret-id cidr_list=192.168.122.14/32,172.18.119.21/32
+$ vault write auth/devops/role/devopsadminrole/secret-id cidr_list=192.168.122.14/32,172.18.119.21/32,127.0.0.1/32
 Key                   Value
 ---                   -----
 secret_id             e50ba2b6-d14d-9ebb-5d4a-ef93699fb375
 secret_id_accessor    907d4ff0-fdc8-0573-164f-c02d201ce8e2
 secret_id_num_uses    0
 secret_id_ttl         0s
+```
+
+I'll do vault managemetn oprerations from Vault localhost, so I'll haveto allow local addresses also. If I forget to do that, I'll get:
+```text
+ source address "127.0.0.1" unauthorized through CIDR restrictions on the secret ID
 ```
 
 Next I'll create access token, now I'll have to talk to correct ip addr and use ssl: 
@@ -916,7 +922,141 @@ $ vault kv list -ca-cert rootCA.crt -mount=devops/ project1
 ]
 ```
 
-Now 2h was used and token TTL is over, but there was renew period for 6h, lets renew remote token:
+I did not do Vault managemtn for a while and Token TTL is done, so lets re-create Token. Steps are 1) check role_id 2) bind access control cidr_list to secret_id 3) bind login to role_id and secret_id to get Token:
+```text
+$ vault list auth/devops/role/
+Keys
+----
+devopsadminrole
+$
+$ vault read auth/devops/role/devopsadminrole/role-id
+Key        Value
+---        -----
+role_id    2e697b26-4cef-9e6f-e304-07237997ed08
+$
+$ vault write auth/devops/role/devopsadminrole/secret-id cidr_list=192.168.122.14/32,172.18.119.21/32
+Key                   Value
+---                   -----
+secret_id             23254025-babf-7a82-4685-1fa494b4c2b6
+secret_id_accessor    0d58887b-fee5-9a14-3397-b0562dea3b43
+secret_id_num_uses    0
+secret_id_ttl         0s
+$
+$ vault write auth/devops/login role_id="2e697b26-4cef-9e6f-e304-07237997ed08" secret_id="e63087b4-3673-0b7e-79c0-feb811b776c9"
+Key                     Value
+---                     -----
+token                   hvs.CAESIPSx00_OvrhD1Tt71QAfMSXC9ZX_B8GvoEc6_kTkdGcdGh4KHGh2cy5WNmJET2NreVhJejZsbDdOWU12bHFxOWs
+token_accessor          gWlNqyuVCZW4hgRngkzisu9Y
+token_duration          2h
+token_renewable         true
+token_policies          ["default" "devopsadmin"]
+identity_policies       []
+policies                ["default" "devopsadmin"]
+token_meta_role_name    devopsadminrole
+```
+
+Next step is remote login from devops host with selfsigned cert:
+```text
+$ export VAULT_ADDR="https://192.168.122.14:8200"
+$
+$ vault login -ca-cert rootCA.crt
+Token (will be hidden):
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                     Value
+---                     -----
+token                   hvs.CAESIPSx00_OvrhD1Tt71QAfMSXC9ZX_B8GvoEc6_kTkdGcdGh4KHGh2cy5WNmJET2NreVhJejZsbDdOWU12bHFxOWs
+token_accessor          gWlNqyuVCZW4hgRngkzisu9Y
+token_duration          1h53m33s
+token_renewable         true
+token_policies          ["default" "devopsadmin"]
+identity_policies       []
+policies                ["default" "devopsadmin"]
+token_meta_role_name    devopsadminrole
+```
+
+Now devops admin has new 2h TTL Token, lets continue policy verification with delete value from secret2:
+```text
+$ vault kv delete -ca-cert rootCA.crt -mount=devops/ project1/secret2
+Success! Data deleted (if it existed) at: devops/data/project1/secret2
+$
+$ vault kv get -ca-cert rootCA.crt -mount=devops/data/ project1/secret2
+======== Secret Path ========
+devops/data/project1/secret2
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-02-01T14:31:30.207742616Z
+custom_metadata    <nil>
+deletion_time      2024-02-02T13:35:47.919760392Z
+destroyed          false
+version            1
+$
+```
+
+Operation was successful, but secret2 still exist, it just doesn't have data anymore:
+```text
+$ vault kv list -ca-cert rootCA.crt -mount=devops/ project1
+Keys
+----
+secret1
+secret2
+```
+
+To completely remove secret2 I'll have to:
+```text
+$  vault kv metadata delete -ca-cert rootCA.crt -mount=devops/ project1/secret2
+Success! Data deleted (if it existed) at: devops/metadata/project1/secret2
+$
+$ vault kv list -ca-cert rootCA.crt -mount=devops/ project1
+Keys
+----
+secret1
+```
+
+### Token operations
+
+Now 2h was used and token TTL is over, but there was renew period for 6h so lets renew remote token:
 ```text
 sadassd
+``
+
+To operate with secret id we have to use accessor, my current secret_id is referenced with `secret_id_accessor edbf5a51-dd47-a45e-c678-1adb9af005d0`, below I list accessors, get info about current secret_id and remove old:
+```text
+$ vault list auth/devops/role/devopsadminrole/secret-id
+Keys
+----
+0d58887b-fee5-9a14-3397-b0562dea3b43
+907d4ff0-fdc8-0573-164f-c02d201ce8e2
+edbf5a51-dd47-a45e-c678-1adb9af005d0
+$
+$ vault write auth/devops/role/devopsadminrole/secret-id-accessor/lookup secret_id_accessor=edbf5a51-dd47-a45e-c678-1adb9af005d0
+Key                   Value
+---                   -----
+cidr_list             [192.168.122.14/32 172.18.119.21/32 127.0.0.1/32]
+creation_time         2024-02-02T15:22:15.47628367+02:00
+expiration_time       0001-01-01T00:00:00Z
+last_updated_time     2024-02-02T15:22:15.47628367+02:00
+metadata              map[]
+secret_id_accessor    edbf5a51-dd47-a45e-c678-1adb9af005d0
+secret_id_num_uses    0
+secret_id_ttl         0s
+token_bound_cidrs     []
+$
+$ vault write auth/devops/role/devopsadminrole/secret-id-accessor/destroy secret_id_accessor=907d4ff0-fdc8-0573-164f-c02d201ce8e2
+Success! Data written to: auth/devops/role/devopsadminrole/secret-id-accessor/destroy
+$
+$ vault write auth/devops/role/devopsadminrole/secret-id-accessor/destroy secret_id_accessor=0d58887b-fee5-9a14-3397-b0562dea3b43
+Success! Data written to: auth/devops/role/devopsadminrole/secret-id-accessor/destroy
+$
+$ vault list auth/devops/role/devopsadminrole/secret-id
+Keys
+----
+edbf5a51-dd47-a45e-c678-1adb9af005d0
 ```
+
+
+
