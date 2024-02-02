@@ -1019,7 +1019,7 @@ secret1
 
 ### Approle operations
 
-How to check how long time Token still has:
+How to check how long time Token still has before expiration:
 ```tect
 $ vault token lookup -accessor gWlNqyuVCZW4hgRngkzisu9Y
 Key                 Value
