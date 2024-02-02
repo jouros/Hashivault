@@ -1081,7 +1081,7 @@ edbf5a51-dd47-a45e-c678-1adb9af005d0
 
 ## Kubernetes Sidecar Agent injector
 
-sadasds
+Finally after very long introduction to the main point, how to integrate Kubernetes Pod secrets management to Hashi Vault. In my lab I'll use Sidecar Agent Injector. 
 
 
 ### Vault configuration for Kubernetes
