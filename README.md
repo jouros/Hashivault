@@ -1017,12 +1017,38 @@ Keys
 secret1
 ```
 
-### Token operations
+### Approle operations
+
+How to check how long time Token still has:
+```tect
+$ vault token lookup -accessor gWlNqyuVCZW4hgRngkzisu9Y
+Key                 Value
+---                 -----
+accessor            gWlNqyuVCZW4hgRngkzisu9Y
+creation_time       1706880248
+creation_ttl        2h
+display_name        devops
+entity_id           8288e91e-31aa-f709-2718-68957cb54ba5
+expire_time         2024-02-02T17:24:08.883802366+02:00
+explicit_max_ttl    0s
+id                  n/a
+issue_time          2024-02-02T15:24:08.883804347+02:00
+meta                map[role_name:devopsadminrole]
+num_uses            0
+orphan              true
+path                auth/devops/login
+policies            [default devopsadmin]
+renewable           true
+ttl                 16m20s
+type                service
+```
+
+Time was 17:09 and expire time 17:24, so I'll still have about 15 minutes to wait until Token renewal case.
 
 Now 2h was used and token TTL is over, but there was renew period for 6h so lets renew remote token:
 ```text
 sadassd
-``
+```
 
 To operate with secret id we have to use accessor, my current secret_id is referenced with `secret_id_accessor edbf5a51-dd47-a45e-c678-1adb9af005d0`, below I list accessors, get info about current secret_id and remove old:
 ```text
