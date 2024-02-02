@@ -1045,7 +1045,7 @@ type                service
 
 Time was 17:09 and expire time 17:24, so I'll still have about 15 minutes to wait until Token renewal case, time to make some coffee...
 
-Now 2h was used and token TTL is over, but there was renew period for 6h so lets renew remote token:
+Now 2h was used and token TTL is over, but there was renew period for 6h so lets renew token:
 ```text
 sadassd
 ```
