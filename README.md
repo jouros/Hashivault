@@ -1108,7 +1108,7 @@ Push: `docker push jrcjoro1/mypythonapp:0.0.1`
 
 Create base chart: `helm create mypythonapp`
 
-Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` and `port: 32680`
+Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` and `port: 8080`
 
 check Helm `helm lint mypythonapp/`
 
