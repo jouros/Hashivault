@@ -2,9 +2,11 @@
 
 In this demo lab I will focus on Kubernetes integration for Hashicorp Vault, this is not production ready deployment e.g. secrets persistent storage is not configured. 
 
-This demo is installed on WSL2
+This demo is installed on WSL2 and I'll restart Vault every time I continue, so Tokens etc. will recreated every time. 
 
-Ubuntu cloud init will deploy Hashi vault and 'vault' regular user account. For Ansible I have deployed 'management' user account with sudo, example below: 
+I have deployed Hashivault with Ubuntu cloud init and it create 'vault' regular user account for all localhost root token Vault admin operations. For remote management I use Approle Token with limited permissions, I'll call that 'DevOps admin' user or host. Third 'user' is Kubernetes which has 'read only' permissions for 'DevOps admin' secrets.  
+
+For Ansible I have deployed 'management' user account with sudo, see example below: 
 
 ```text
 management@hashivault:~$ sudo su
@@ -1086,10 +1088,21 @@ Finally after very long introduction to the main point, how to integrate Kuberne
 
 ### Vault configuration for Kubernetes
 
-asdsad
+
 
 
 ### Kubernetes configuration for Vault
 
 asdssd
 
+## My Python App
+
+### Docker Build
+
+Build `docker build -t jrcjoro1/mypythonapp:0.0.1 .`
+Push: `docker push jrcjoro1/mypythonapp:0.0.1`
+
+### Helm chart
+
+Create chart: `helm create mypythonapp`
+Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` and `port: 32680`
