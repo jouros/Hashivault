@@ -1104,9 +1104,49 @@ Build `docker build -t jrcjoro1/mypythonapp:0.0.1 .`
 Push: `docker push jrcjoro1/mypythonapp:0.0.1`
 
 
-### Helm chart
+### Create Helm chart
 
-Create chart: `helm create mypythonapp`
+Create base chart: `helm create mypythonapp`
 
 Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` and `port: 32680`
+
+check Helm `helm lint mypythonapp/`
+
+
+### Add Custom mypythonapp Chart to github
+
+In my previous lab I already created custom github Helm repo for Busybox chart, now I have add mypythonapp chart to that repo:
+```text
+$ helm package Charts/mypythonapp
+Successfully packaged chart and saved it to: ~/helm-repo/mypythonapp-0.0.1.tg
+$ 
+$ mv mypythonapp-0.0.1.tgz Packages/
+$
+$ helm repo index --url mypythonapp-0.0.1.tgz --merge index.yaml .
+$
+$ git add .
+$
+$ git commit -m "mypythonapp"
+$
+$ git push
+```
+
+Test Custom repo in Kubernetes with Helm:
+```text
+k8s-admin@kube1:~$ helm repo list
+NAME            URL
+bitnami         https://charts.bitnami.com/bitnami
+custom-repo     https://jouros.github.io/helm-repo
+k8s-admin@kube1:~$ helm repo update
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "custom-repo" chart repository
+...Successfully got an update from the "bitnami" chart repository
+Update Complete. ⎈Happy Helming!⎈
+k8s-admin@kube1:~$ helm search repo custom-repo -l
+NAME                    CHART VERSION   APP VERSION     DESCRIPTION
+custom-repo/busybox     0.0.1           latest          A Helm chart for Kubernetes
+custom-repo/mypythonapp 0.0.1           0.0.1           A Helm chart for Kubernetes
+```
+
+I prefer Ansible in deployments, so lets deploy my-python-app, role 'helm-mypythonapp' can be found from my WSL2Fun Ansible roles `ansible-playbook main.yml --tags "helm-mypythonapp"`
 
