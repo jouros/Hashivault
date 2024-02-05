@@ -1100,9 +1100,13 @@ asdssd
 ### Docker Build
 
 Build `docker build -t jrcjoro1/mypythonapp:0.0.1 .`
+
 Push: `docker push jrcjoro1/mypythonapp:0.0.1`
+
 
 ### Helm chart
 
 Create chart: `helm create mypythonapp`
+
 Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` and `port: 32680`
+
