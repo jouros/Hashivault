@@ -1088,12 +1088,13 @@ Finally after very long introduction to the main point, how to integrate Kuberne
 
 ### Vault configuration for Kubernetes
 
-
+sadasds
 
 
 ### Kubernetes configuration for Vault
 
 asdssd
+
 
 ## My Python App
 
@@ -1148,5 +1149,36 @@ custom-repo/busybox     0.0.1           latest          A Helm chart for Kuberne
 custom-repo/mypythonapp 0.0.1           0.0.1           A Helm chart for Kubernetes
 ```
 
-I prefer Ansible in deployments, so lets deploy my-python-app, role 'helm-mypythonapp' can be found from my WSL2Fun Ansible roles `ansible-playbook main.yml --tags "helm-mypythonapp"`
+I prefer Ansible in deployments, so lets deploy my-python-app, role 'helm-mypythonapp' can be found from my WSL2Fun Ansible roles:
+```text
+$ ansible-playbook main.yml --tags "helm-mypythonapp"
+ok: [kube1] =>
+  msg: |-
+    Release "mypythonapp" does not exist. Installing it now.
+    NAME: mypythonapp
+    LAST DEPLOYED: Tue Feb  6 14:53:24 2024
+    NAMESPACE: test2
+    STATUS: deployed
+    REVISION: 1
+    NOTES:
+    1. Get the application URL by running these commands:
+      export POD_NAME=$(kubectl get pods --namespace test2 -l "app.kubernetes.io/name=mypythonapp,app.kubernetes.io/instance=mypythonapp" -o jsonpath="{.items[0].metadata.name}")
+      export CONTAINER_PORT=$(kubectl get pod --namespace test2 $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+      echo "Visit http://127.0.0.1:8080 to use your application"
+      kubectl --namespace test2 port-forward $POD_NAME 8080:$CONTAINER_PORT
+```
+
+Check from Kube:
+```text
+$ k get pods -n test2
+NAME                          READY   STATUS    RESTARTS   AGE
+mypythonapp-ff9f6d8db-vprt2   1/1     Running   0          11s
+$
+$ k get svc -n test2
+NAME          TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+mypythonapp   ClusterIP   10.107.202.74   <none>        8080/TCP   23s
+$
+$ curl http://10.107.202.74:8080
+{"data": {"username": "correct_user", "password": "correct_password"}}
+```
 
