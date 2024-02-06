@@ -1085,6 +1085,17 @@ edbf5a51-dd47-a45e-c678-1adb9af005d0
 
 Finally after very long introduction to the main point, how to integrate Kubernetes Pod secrets management to Hashi Vault. In my lab I'll use Sidecar Agent Injector. 
 
+First I need to add Hashicorp Helm repo for which I use Ansible role 'helm-addrepo' from WSL2Fun:
+```text
+$ ansible-playbook main.yml --tags "helm-addrepo"
+ok: [kube1] =>
+  msg: |-
+    NAME            URL
+    bitnami         https://charts.bitnami.com/bitnami
+    custom-repo     https://jouros.github.io/helm-repo
+    hashicorp       https://helm.releases.hashicorp.com
+```
+
 
 ### Vault configuration for Kubernetes
 
@@ -1093,7 +1104,38 @@ sadasds
 
 ### Kubernetes configuration for Vault
 
-asdssd
+
+#### Sidecar agent deployment
+
+I set spesific tags for Sidecar deployment in WSL2Fun main.yml Ansible variables for deployment role helm-sidecaragent only for personal interest with versions, I also set loglevel to debug:
+```text
+VAULT_K8S_TAG: "1.3.1"
+VAULT_TAG: "1.15.2"
+LOG_LEVEL: "debug"
+```
+
+
+#### Serviceaccount
+
+Helm chart creates Kube serviceaccount 'mypythonappsa':
+```text
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "mypythonappsa"
+$
+$ k get sa -n test2
+NAME            SECRETS   AGE
+default         0         21h
+mypythonappsa   0         10m
+$
+```
 
 
 ## My Python App
@@ -1114,6 +1156,20 @@ Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` a
 check Helm `helm lint mypythonapp/`
 
 
+### Container secrets modification for Vault
+
+In mypythonapp version 0.0.1 I had data.json located in same folder with python code. Vault read secrets from path /vault/secrets, so I'll have to change Python code to read from correct path and Dockerfile to add data.json into correct location, so I'll create app and chart version 0.0.2.
+
+Similar way I'll change Helm chart to include tag: 0.0.2 and update github helm-repo with new Chart version 0.0.2:
+```text
+$ helm search repo custom-repo -l
+NAME                    CHART VERSION   APP VERSION     DESCRIPTION
+custom-repo/busybox     0.0.1           latest          A Helm chart for Kubernetes
+custom-repo/mypythonapp 0.0.2           0.0.2           A Helm chart for Kubernetes
+custom-repo/mypythonapp 0.0.1           0.0.1           A Helm chart for Kubernetes
+```
+
+
 ### Add Custom mypythonapp Chart to github
 
 In my previous lab I already created custom github Helm repo for Busybox chart, now I have add mypythonapp chart to that repo:
@@ -1123,8 +1179,11 @@ Successfully packaged chart and saved it to: ~/helm-repo/mypythonapp-0.0.1.tg
 $ 
 $ mv mypythonapp-0.0.1.tgz Packages/
 $
-$ helm repo index --url mypythonapp-0.0.1.tgz --merge index.yaml .
-$
+$ helm repo index --url Packages/mypythonapp-0.0.1.tgz --merge index.yaml . 
+```
+
+Helm index doesn't make urls path correctly, so small edition is needed for index.yaml before updating git repo:
+```text
 $ git add .
 $
 $ git commit -m "mypythonapp"
