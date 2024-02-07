@@ -936,7 +936,7 @@ Key        Value
 ---        -----
 role_id    2e697b26-4cef-9e6f-e304-07237997ed08
 $
-$ vault write auth/devops/role/devopsadminrole/secret-id cidr_list=192.168.122.14/32,172.18.119.21/32
+$ vault write auth/devops/role/devopsadminrole/secret-id cidr_list=192.168.122.14/32,172.18.119.21/32,127.0.0.1/32
 Key                   Value
 ---                   -----
 secret_id             23254025-babf-7a82-4685-1fa494b4c2b6
@@ -1018,6 +1018,44 @@ Keys
 ----
 secret1
 ```
+
+My Python APP is expecting data.json, which mean we have to delete previous kv test values and put data.json into its place:
+```text
+$ vault kv delete -ca-cert rootCA.crt -mount=devops/data/ project1/secret1
+Success! Data deleted (if it existed) at: devops/data/project1/secret1
+$
+$ vault write -ca-cert rootCA.crt devops/data/project1/secret1 @data.json
+Key                Value
+---                -----
+created_time       2024-02-07T13:53:42.269491428Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            3
+$
+$ vault kv get -ca-cert ../SSL/rootCA.crt -mount=devops/data/ project1/secret1
+{
+  "request_id": "393b6da1-be32-7b87-0155-833495994143",
+  "lease_id": "",
+  "lease_duration": 0,
+  "renewable": false,
+  "data": {
+    "data": {
+      "password": "correct_password",
+      "username": "correct_user"
+    },
+    "metadata": {
+      "created_time": "2024-02-07T13:53:42.269491428Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 3
+    }
+  },
+  "warnings": null
+}
+```
+
 
 ### Approle operations
 
@@ -1193,7 +1231,6 @@ vault-k8s-agent-injector-5b898c6cc6-dbn4m   1/1     Running   0              55m
 ```
 
 
-
 #### Serviceaccount
 
 Helm chart creates Kube serviceaccount 'mypythonappsa' and previous Sidecar Agent  deployment creates SA 'vault-k8s-agent-injector':
@@ -1217,6 +1254,12 @@ vault-k8s-agent-injector   0         56m
 ```
 
 
+#### Helm chart modification for Vault Agent
+
+Vault Agent Injector modifies App with Kubernetes annotations, in my Lab I'll set vault.hashicorp.com/agent-inject: false and use online patch to change that value and also get mount into /vault/secrets/data.json to replace hard coded data.json:
+```text
+asdasasd
+```
 
 
 ## My Python App
@@ -1237,7 +1280,7 @@ Small values.yaml editions: `repository: jrcjoro1/my-python-app`, `tag: 0.0.1` a
 check Helm `helm lint mypythonapp/`
 
 
-### Container secrets modification for Vault
+### Container secrets path modification for Vault
 
 In mypythonapp version 0.0.1 I had data.json located in same folder with python code. Vault read secrets from path /vault/secrets, so I'll have to change Python code to read from correct path and Dockerfile to add data.json into correct location, so I'll create app and chart version 0.0.2.
 
