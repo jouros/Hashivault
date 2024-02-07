@@ -1178,14 +1178,25 @@ Next I'll have to jump to Kubernets configuration for JWT Token creation before 
 I set spesific tags for Sidecar deployment in WSL2Fun main.yml Ansible variables for deployment role helm-sidecaragent only for personal interest with versions, I also set loglevel to debug:
 ```text
 VAULT_K8S_TAG: "1.3.1"
-VAULT_TAG: "1.15.2"
+VAULT_TAG: "1.d15.2"
 LOG_LEVEL: "debug"
+$
+$ ansible-playbook main.yml --tags "helm-sidecaragent"
+ok: [kube1] =>
+  msg:
+  - mypythonapp-85b9fd95f5-6jjvg
+  - vault-k8s-agent-injector-5b898c6cc6-dbn4m
+$ k get pods -n test2
+NAME                                        READY   STATUS    RESTARTS       AGE
+mypythonapp-85b9fd95f5-6jjvg                1/1     Running   1 (128m ago)   22h
+vault-k8s-agent-injector-5b898c6cc6-dbn4m   1/1     Running   0              55m
 ```
+
 
 
 #### Serviceaccount
 
-Helm chart creates Kube serviceaccount 'mypythonappsa':
+Helm chart creates Kube serviceaccount 'mypythonappsa' and previous Sidecar Agent  deployment creates SA 'vault-k8s-agent-injector':
 ```text
 serviceAccount:
   # Specifies whether a service account should be created
@@ -1199,10 +1210,10 @@ serviceAccount:
   name: "mypythonappsa"
 $
 $ k get sa -n test2
-NAME            SECRETS   AGE
-default         0         21h
-mypythonappsa   0         10m
-$
+NAME                       SECRETS   AGE
+default                    0         45h
+mypythonappsa              0         22h
+vault-k8s-agent-injector   0         56m
 ```
 
 
