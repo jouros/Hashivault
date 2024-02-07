@@ -1099,7 +1099,75 @@ ok: [kube1] =>
 
 ### Vault configuration for Kubernetes
 
-sadasds
+First I'll enable kubernetes auth method:
+```text
+$ vault auth list
+Path       Type       Accessor                 Description                 Version
+----       ----       --------                 -----------                 -------
+devops/    approle    auth_approle_c0473ce8    DevOps Admin credentials    n/a
+token/     token      auth_token_751e8ae6      token based credentials     n/a
+$
+$ vault auth enable kubernetes
+Success! Enabled kubernetes auth method at: kubernetes/
+$
+$ vault auth list
+Path           Type          Accessor                    Description                 Version
+----           ----          --------                    -----------                 -------
+devops/        approle       auth_approle_c0473ce8       DevOps Admin credentials    n/a
+kubernetes/    kubernetes    auth_kubernetes_c7bf907f    n/a                         n/a
+token/         token         auth_token_751e8ae6         token based credentials     n/a
+```
+
+Then I'll create 'readonly' policy for kubernetes:
+```text
+$ cat /etc/vault.d/policy2.hcl
+path "devops/data/project1/secret1" {
+  capabilities = ["read"]
+}
+$ vault policy list
+default
+devopsadmin
+root
+$
+$ vault policy write kubepolicy /etc/vault.d/policy2.hcl
+Success! Uploaded policy: kubepolicy
+$
+$ vault policy read kubepolicy
+path "devops/data/project1/secret1" {
+  capabilities = ["read"]
+}
+```
+
+Next I'll create role 'kubereadonlyrole' for SA 'mypythonappsa' for every namespace so I can change my deployment later and with deafult four days TTL for Tokens and Max TTL for for 6 days which some extra days for which Token can be extended:
+```text
+$ vault write auth/kubernetes/role/kubereadonlyrole bound_service_account_names=mypythonappsa bound_service_account_namespaces='*' policies=kubepolicy ttl=96h token_max_ttl=144h
+Success! Data written to: auth/kubernetes/role/kubereadonlyrole
+$
+$ vault list auth/kubernetes/role
+Keys
+----
+kubereadonlyrole
+$
+$ vault read auth/kubernetes/role/kubereadonlyrole
+Key                                 Value
+---                                 -----
+alias_name_source                   serviceaccount_uid
+bound_service_account_names         [mypythonappsa]
+bound_service_account_namespaces    [*]
+policies                            [kubepolicy]
+token_bound_cidrs                   []
+token_explicit_max_ttl              0s
+token_max_ttl                       144h
+token_no_default_policy             false
+token_num_uses                      0
+token_period                        0s
+token_policies                      [kubepolicy]
+token_ttl                           96h
+token_type                          default
+ttl                                 96h
+```
+
+Next I'll have to jump to Kubernets configuration for JWT Token creation before I can finish Vault kubereadonlyrole auth config. 
 
 
 ### Kubernetes configuration for Vault
@@ -1136,6 +1204,8 @@ default         0         21h
 mypythonappsa   0         10m
 $
 ```
+
+
 
 
 ## My Python App
