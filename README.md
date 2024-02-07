@@ -1256,7 +1256,7 @@ vault-k8s-agent-injector   0         56m
 
 #### Helm chart modification for Vault Agent
 
-Vault Agent Injector modifies App with Kubernetes annotations, in my Lab I'll set vault.hashicorp.com/agent-inject: false and use online patch to change that value and also get mount into /vault/secrets/data.json to replace hard coded data.json:
+Vault Agent Injector modifies App with Kubernetes annotations, in my Lab I'll set vault.hashicorp.com/agent-inject: false and use online patch to change that value and also get mount into /vault/secrets/data.json to replace hard coded data.json. To add needed annotations I'll create chart version 0.0.3 for app version 0.0.2:
 ```text
 asdasasd
 ```
