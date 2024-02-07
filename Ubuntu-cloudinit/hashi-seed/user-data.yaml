@@ -52,11 +52,11 @@ swap:
   size: auto
   maxsize: 10485760
 write_files:
-  - path: /home/management/huuhaa.tzt
+  - path: /home/management/huuhaa.txt
     content: |
       one 
       two 
-    owner: root:root 
+    owner: management:management 
     permissions: '0644'
 runcmd:
   - systemctl start qemu-guest-agent # Agent can not be enabled
