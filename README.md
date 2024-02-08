@@ -1207,6 +1207,8 @@ ttl                                 96h
 
 Next I'll have to jump to Kubernets configuration for JWT Token creation before I can finish Vault kubereadonlyrole auth config. 
 
+```text
+ $ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT_TOKEN" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="false"
 
 ### Kubernetes configuration for Vault
 
@@ -1253,12 +1255,58 @@ mypythonappsa              0         22h
 vault-k8s-agent-injector   0         56m
 ```
 
+Values for Vault 1: kubernetes_host, I have set /etc/hosts in Vault host:
+```text
+$ kubectl config view --raw --minify --flatten --output 'jsonpath={.clusters[].cluster.server}{"\n"}'
+https://kube1:6443
+Test with ping from Vault:
+$ ping kube1
+PING kube1 (192.168.122.10) 56(84) bytes of data.
+64 bytes from kube1 (192.168.122.10): icmp_seq=1 ttl=64 time=1.21 ms
+64 bytes from kube1 (192.168.122.10): icmp_seq=2 ttl=64 time=0.476 ms
+```
+
+Values for Vault 2: JWT
+
+Values for Vault 3: KUBE_CA_CERT
+
 
 #### Helm chart modification for Vault Agent
 
 Vault Agent Injector modifies App with Kubernetes annotations, in my Lab I'll set vault.hashicorp.com/agent-inject: false and use online patch to change that value and also get mount into /vault/secrets/data.json to replace hard coded data.json. To add needed annotations I'll create chart version 0.0.3 for app version 0.0.2:
 ```text
-asdasasd
+$ helm repo update
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "hashicorp" chart repository
+...Successfully got an update from the "custom-repo" chart repository
+...Successfully got an update from the "bitnami" chart repository
+Update Complete. ⎈Happy Helming!⎈
+$
+$ helm search repo custom-repo -l
+NAME                    CHART VERSION   APP VERSION     DESCRIPTION
+custom-repo/busybox     0.0.1           latest          A Helm chart for Kubernetes
+custom-repo/mypythonapp 0.0.3           0.0.2           A Helm chart for Kubernetes
+custom-repo/mypythonapp 0.0.2           0.0.2           A Helm chart for Kubernetes
+custom-repo/mypythonapp 0.0.1           0.0.1           A Helm chart for Kubernetes
+```
+
+Next I'll change required chart version in Ansible role 'helm'mypythonapp' and re-deploy:
+```text
+~/WSL2Fun$ ansible-playbook main.yml --tags "helm-mypythonapp"
+$
+~$ helm list -n test2
+NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                   APP VERSION
+mypythonapp     test2           2               2024-02-08 15:12:20.41782401 +0200 EET  deployed        mypythonapp-0.0.3       0.0.2
+vault-k8s       test2           1               2024-02-07 13:46:44.974861276 +0200 EET deployed        vault-0.27.0            1.15.2
+```
+
+Now Pod has new annotations for Vault, agent-inject is false because I will change that with patch later on: 
+```text
+$ k describe pod mypythonapp-85994db9f5-cspr4 -n test2
+Annotations:      
+                  vault.hashicorp.com/agent-inject: false
+                  vault.hashicorp.com/agent-inject-secret-conf.json: devops/data/project1/secret1
+                  vault.hashicorp.com/role: kubereadonlyrole
 ```
 
 
