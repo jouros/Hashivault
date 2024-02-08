@@ -1209,6 +1209,8 @@ Next I'll have to jump to Kubernets configuration for JWT Token creation before 
 
 ```text
  $ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT_TOKEN" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="false"
+```
+
 
 ### Kubernetes configuration for Vault
 
@@ -1255,7 +1257,9 @@ mypythonappsa              0         22h
 vault-k8s-agent-injector   0         56m
 ```
 
-Values for Vault 1: kubernetes_host, I have set /etc/hosts in Vault host:
+#### Values for Vault kube auth config 1: kubernetes_host 
+
+I have set /etc/hosts in Vault host:
 ```text
 $ kubectl config view --raw --minify --flatten --output 'jsonpath={.clusters[].cluster.server}{"\n"}'
 https://kube1:6443
@@ -1266,10 +1270,19 @@ PING kube1 (192.168.122.10) 56(84) bytes of data.
 64 bytes from kube1 (192.168.122.10): icmp_seq=2 ttl=64 time=0.476 ms
 ```
 
-Values for Vault 2: JWT
+#### Values for Vault kube auth config 2: JWT Token
 
-Values for Vault 3: KUBE_CA_CERT
+sdsaddasd
+```text
+sdsad
+```
 
+#### Values for Vault kube auth config 3: KUBE_CA_CERT
+
+sadasdas
+```text
+sdasd
+```
 
 #### Helm chart modification for Vault Agent
 
