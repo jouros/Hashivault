@@ -1237,13 +1237,15 @@ vault-k8s-agent-injector-5b898c6cc6-dbn4m   1/1     Running   0              55m
 
 #### Serviceaccount
 
-Helm chart creates Kube serviceaccount 'mypythonappsa' and previous Sidecar Agent  deployment creates SA 'vault-k8s-agent-injector':
+Service accounts are intended to provide identity for Pod, changes into SA require Pod restart.  
+
+Helm chart creates Kube serviceaccount 'mypythonappsa' for Pod. In Helm chart I set automount: false (v0.0.4), because I wan't to create long lived SA Token which I use in Vault auth:
 ```text
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  automount: false
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
@@ -1254,8 +1256,40 @@ $ k get sa -n test2
 NAME                       SECRETS   AGE
 default                    0         45h
 mypythonappsa              0         22h
-vault-k8s-agent-injector   0         56m
+$
+
 ```
+
+
+If I set 'automount: true' in Helm chart (v0.0.3), I get SA Token automatically mounted into Pod:
+```text
+$ k get pod mypythonapp-85994db9f5-cspr4 -n test2 -o yaml
+   volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-4hxh4
+      readOnly: true
+
+ serviceAccount: mypythonappsa
+ serviceAccountName: mypythonappsa
+
+ volumes:
+  - name: kube-api-access-4hxh4
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+$
+k exec -it mypythonapp-85994db9f5-cspr4 -n test2 -- cat /var/run/secrets/kubernetes.io/serviceaccount/token
+eyJhbGciOiJSUzI1NiIsImtpZCI6IlVabGZB
+```
+
 
 #### Values for Vault kube auth config 1: kubernetes_host 
 
@@ -1273,10 +1307,43 @@ PING kube1 (192.168.122.10) 56(84) bytes of data.
 
 #### Values for Vault kube auth config 2: JWT Token
 
-sdsaddasd
+Here is 'long lived SA Token' which I'll set in legacy way to have non expiring Token. K8s favor Time Bound Tokens for security reasons, so in the near future I'll probably has to change this:
 ```text
-sdsad
+$ ansible-playbook main.yml --tags "kubernetes-secret"
+ok: [kube1] =>
+  msg:
+    changed: false
+    failed: false
+    method: update
+    result:
+      apiVersion: v1
+      data:
+        ca.crt: LS0tLS...
+$
+$ k get secrets -n test2
+NAME                                TYPE                                  DATA   AGE
+sh.helm.release.v1.mypythonapp.v1   helm.sh/release.v1                    1      29m
+sh.helm.release.v1.mypythonapp.v2   helm.sh/release.v1                    1      28m
+sh.helm.release.v1.vault-k8s.v1     helm.sh/release.v1                    1      28h
+vault-auth-secret                   kubernetes.io/service-account-token   3      102s
+$
+$ k describe secret vault-auth-secret -n test2
+Name:         vault-auth-secret
+Namespace:    test2
+Labels:       <none>
+Annotations:  kubernetes.io/service-account.name: mypythonappsa
+              kubernetes.io/service-account.uid: 22d14045-e5be-4a9a-b626-fbb5b791671f
+
+Type:  kubernetes.io/service-account-token
+
+Data
+====
+namespace:  5 bytes
+token:      eyJhbGc...
+ca.crt:     1107 bytes
 ```
+
+Kube API will automatically polate correct values for above secret because annotation and type parameters. 
 
 
 #### Values for Vault kube auth config 3: KUBE_CA_CERT
