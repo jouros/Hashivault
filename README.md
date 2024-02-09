@@ -1565,6 +1565,7 @@ $ tail -f /var/log/vault-audit.log | jq
   "request": {
     "id": "9a47fcdb-eb9b-bb19-6996-091a9ce4946f",
     "operation": "update",
+```
 
 
 ## My Python App
