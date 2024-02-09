@@ -1540,7 +1540,35 @@ Annotations:
 ```
 
 
+## Vault Audit Log
+
+```text
+# touch /var/log/vault-audit.log
+# chown vault:vault /var/log/vault-audit.log
+# chmod 600 /var/log/vault-audit.log
+# ls -la /var/log/vault-audit.log
+-rw------- 1 vault vault 0 Feb  9 17:16 /var/log/vault-audit.log
+$
+$ vault audit enable file file_path=/var/log/vault-audit.log
+Success! Enabled the file audit device at: file/
+$
+$ tail -f /var/log/vault-audit.log | jq
+{
+  "time": "2024-02-09T15:20:30.176538674Z",
+  "type": "response",
+  "auth": {
+    "policy_results": {
+      "allowed": true
+    },
+    "token_type": "default"
+  },
+  "request": {
+    "id": "9a47fcdb-eb9b-bb19-6996-091a9ce4946f",
+    "operation": "update",
+
+
 ## My Python App
+
 
 ### Docker Build
 
