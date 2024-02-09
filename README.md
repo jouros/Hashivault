@@ -1207,9 +1207,23 @@ ttl                                 96h
 
 Next I'll have to jump to Kubernets configuration for JWT Token creation before I can finish Vault kubereadonlyrole auth config. 
 
+Now I got required values and I can continue Kubenetes auth config:
 ```text
- $ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT_TOKEN" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="false"
+$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="/opt/vault/tls/JWT.crt" kubernetes_ca_cert="/opt/vault/tls/KUBE_CA_CERT.crt" disable_local_ca_jwt="true" issuer="https://kubernetes.default.svc.cluster.local" disable_iss_validation="false"
+Success! Data written to: auth/kubernetes/config
+$
+$ vault read auth/kubernetes/config
+Key                       Value
+---                       -----
+disable_iss_validation    false
+disable_local_ca_jwt      true
+issuer                    kubernetes/serviceaccount
+kubernetes_ca_cert        /opt/vault/tls/KUBE_CA_CERT.crt
+kubernetes_host           https://kube1:6443
+pem_keys                  []
 ```
+
+Next I'll jump into Kubernetes for patching Pod. 
 
 
 ### Kubernetes configuration for Vault
@@ -1259,7 +1273,6 @@ mypythonappsa              0         22h
 $
 
 ```
-
 
 If I set 'automount: true' in Helm chart (v0.0.3), I get SA Token automatically mounted into Pod:
 ```text
@@ -1341,20 +1354,143 @@ Data
 namespace:  5 bytes
 token:      eyJhbGc...
 ca.crt:     1107 bytes
+$
+k8s-admin@kube1:~$ kubectl get secret vault-auth-secret -n test2  --output 'go-template={{ .data.token }}' | base64 --decode > JWT.crt
+$
+$ Below I copy above value from remote to remote:
+$ scp -3 -p k8s-admin@192.168.122.10:~/JWT.crt management@192.168.122.14:~/JWT.crt
+$
+# mv JWT.crt /opt/vault/tls/
+#
+# chown vault:vault /opt/vault/tls/JWT.crt
+#
+# chmod 600 /opt/vault/tls/JWT.crt
+$
+$ ls -la /opt/vault/tls/JWT.crt
+-rw------- 1 vault vault 908 Feb  9 13:43 /opt/vault/tls/JWT.crt
 ```
 
 Kube API will automatically polate correct values for above secret because annotation and type parameters. 
 
+JWT Token issuer 'iss':
+```text
+$ cat JWT.crt | jq -R 'split(".") | .[1] | @base64d | fromjson'
+{
+  "iss": "kubernetes/serviceaccount",
+  "kubernetes.io/serviceaccount/namespace": "test2",
+  "kubernetes.io/serviceaccount/secret.name": "vault-auth-secret",
+  "kubernetes.io/serviceaccount/service-account.name": "mypythonappsa",
+  "kubernetes.io/serviceaccount/service-account.uid": "22d14045-e5be-4a9a-b626-fbb5b791671f",
+  "sub": "system:serviceaccount:test2:mypythonappsa"
+}
+```
+
+Notice the difference between JWT and KUBE_CA_CERT issuer!
+
 
 #### Values for Vault kube auth config 3: KUBE_CA_CERT
 
-sadasdas
+I'll read KUBE_CA_CERT from K8s and write result to vault host:
 ```text
-sdasd
+$ ssh k8s-admin@192.168.122.10 kubectl config view --raw --minify --flatten --output 'jsonpath={.clusters[].cluster.certificate-authority-data}' | base64 --decode | ssh -T management@192.168.122.14 "cat > /home/management/KUBE_CA_CERT.crt"
+$
+# mv KUBE_CA_CERT.crt /opt/vault/tls/
+# chown vault:vault /opt/vault/KUBE_CA_CERT.crt
+#
+# chmod 600 /opt/vault/tls/KUBE_CA_CERT.crt
+$
+$ ls -la /opt/vault/tls/KUBE_CA_CERT.crt
+-rw------- 1 vault vault 1107 Feb  9 13:30 /opt/vault/tls/KUBE_CA_CERT.crt
+```
+
+Cert issuer 'iss':
+```text
+$  echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
+>   | kubectl create -f- --raw /api/v1/namespaces/default/serviceaccounts/default/token \
+>   | jq -r '.status.token' \
+>   | cut -d . -f2 \
+>   | base64 -d
+{"aud":["https://kubernetes.default.svc.cluster.local"],"exp":1707484026,"iat":1707480426,"iss":"https://kubernetes.default.svc.cluster.local","kubernetes.io":{"namespace":"default","serviceaccount":{"name":"default","uid":"509c4114-800e-4000-9bff-d32040219910"}},"nbf":1707480426,"sub":"system:serviceaccount:default:default"}
+```
+
+#### Patching Pod
+
+Patch will only change annotation which activate Sidecar Agent:
+```text
+$ k annotate --overwrite pods mypythonapp-956fc8b8b-222kr vault.hashicorp.com/agent-inject=true -n test2
+pod/mypythonapp-956fc8b8b-222kr annotated
+$
+$ k exec -it mypythonapp-956fc8b8b-222kr -n test2 -- cat /vault/secrets/data.json
+{
+  "data": {
+    "username": "correct_user",
+    "password": "correct_password"
+  }
+}
+$
+$ curl -v http://10.110.42.69:8080
+*   Trying 10.110.42.69:8080...
+* Connected to 10.110.42.69 (10.110.42.69) port 8080 (#0)
+> GET / HTTP/1.1
+> Host: 10.110.42.69:8080
+> User-Agent: curl/7.81.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+* HTTP 1.0, assume close after body
+< HTTP/1.0 200 OK
+< Server: SimpleHTTP/0.6 Python/3.9.18
+< Date: Fri, 09 Feb 2024 13:10:48 GMT
+< Content-type: application/json
+<
+* Closing connection 0
+{"data": {"username": "correct_user", "password": "correct_password"}}
+```
+
+Lets change value and see how it effects:
+```text
+$ New values in file:
+$ cat data.json
+{
+  "data": {
+    "username": "foo",
+    "password": "bar"
+  }
+}
+$
+$ vault write -ca-cert ../SSL/rootCA.crt devops/data/project1/secret1 @data.json
+Key                Value
+---                -----
+created_time       2024-02-09T13:19:59.627850779Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            4
+$
+$ vault kv get -ca-cert ../SSL/rootCA.crt -mount=devops/data/ project1/secret1
+======== Secret Path ========
+devops/data/project1/secret1
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2024-02-09T13:19:59.627850779Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            4
+
+====== Data ======
+Key         Value
+---         -----
+password    bar
+username    foo
+$
+
 ```
 
 
-#### Helm chart modification for Vault Agent
+### Helm chart modification for Vault Agent
 
 Vault Agent Injector modifies App with Kubernetes annotations, in my Lab I'll set vault.hashicorp.com/agent-inject: false and use online patch to change that value and also get mount into /vault/secrets/data.json to replace hard coded data.json. To add needed annotations I'll create chart version 0.0.3 for app version 0.0.2:
 ```text
