@@ -1209,7 +1209,7 @@ Next I'll have to jump to Kubernets configuration for JWT Token creation before 
 
 Now I got required values and I can continue Kubenetes auth config:
 ```text
-$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="/opt/vault/tls/JWT.crt" kubernetes_ca_cert="/opt/vault/tls/KUBE_CA_CERT.crt" disable_local_ca_jwt="true" issuer="https://kubernetes.default.svc.cluster.local" disable_iss_validation="false"
+$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="/opt/vault/tls/JWT.crt" kubernetes_ca_cert="/opt/vault/tls/KUBE_CA_CERT.crt" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="false"
 Success! Data written to: auth/kubernetes/config
 $
 $ vault read auth/kubernetes/config
@@ -1223,7 +1223,18 @@ kubernetes_host           https://kube1:6443
 pem_keys                  []
 ```
 
-Next I'll jump into Kubernetes for patching Pod. 
+Inside Pod iss has different value, so for Pod connections I need:
+```text
+$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="/opt/vault/tls/JWT.crt" kubernetes_ca_cert="/opt/vault/tls/KUBE_CA_CERT.crt" disable_local_ca_jwt="true" issuer="https://kubernetes.default.svc.cluster.local" disable_iss_validation="false"
+Success! Data written to: auth/kubernetes/config
+$
+```
+
+Next I'll jump into Kubernetes for patching Pod or go with 'debugging Vault connection'. 
+
+### Debugging Vault connection
+
+CURL
 
 
 ### Kubernetes configuration for Vault
