@@ -1213,7 +1213,6 @@ Now I got required values and I can continue Kubenetes auth config, disable_iss_
 $ JWT=$(cat /opt/vault/tls/JWT.crt)
 $ KUBE_CA_CERT=$(cat /opt/vault/tls/KUBE_CA_CERT.crt)
 $
-
 $ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="true"
 Success! Data written to: auth/kubernetes/config
 $
@@ -1358,8 +1357,7 @@ disable_local_ca_jwt      true
 issuer                    https://kubernetes.default.svc.cluster.local
 ```
 
-Next I'll jump into Kubernetes for patching Pod or go with 'debugging Vault connection'. 
-
+Now I can continue with patching Pod for activating Vault. 
 
 
 ### Kubernetes configuration for Vault
