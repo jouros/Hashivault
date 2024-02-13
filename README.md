@@ -1134,6 +1134,28 @@ ok: [kube1] =>
     hashicorp       https://helm.releases.hashicorp.com
 ```
 
+Info from K8s:
+```text
+$ k get mutatingwebhookconfigurations -n test2
+NAME                           WEBHOOKS   AGE
+vault-k8s-agent-injector-cfg   1          122m
+$
+$ k get mutatingwebhookconfigurations vault-k8s-agent-injector-cfg -n test2 -o yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    meta.helm.sh/release-name: vault-k8s
+    meta.helm.sh/release-namespace: test2
+  creationTimestamp: "2024-02-13T11:32:13Z"
+  generation: 2
+  labels:
+    app.kubernetes.io/instance: vault-k8s
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: vault-agent-injector
+  name: vault-k8s-agent-injector-cfg
+...
+```
 
 ### Vault configuration for Kubernetes
 
@@ -1249,22 +1271,7 @@ Test login from K8s cmd line, first I set JWT. From Vault this auth method acces
 ```text
 $ JWT=$(kubectl get secret vault-auth-secret -n test2 --output 'go-template={{ .data.token }}' | base64 --decode)
 $
-$ cat mypythonapp-rbac.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: role-tokenreview-binding
-  namespace: test2
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: system:auth-delegator
-subjects:
-  - kind: ServiceAccount
-    name: mypythonappsa
-    namespace: test2
-$
-$ k apply -f mypythonapp-rbac.yaml
+$ ansible-playbook main.yml --tags "kubernetes-rbac"
 $
 $ curl -k --request POST --data '{"jwt": "'$JWT'", "role": "kubereadonlyrole"}' https://192.168.122.14:8200/v1/auth/kubernetes/login | jq
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
@@ -1389,26 +1396,15 @@ Service accounts are intended to provide identity for Pod, changes into SA requi
 
 Helm chart creates Kube serviceaccount 'mypythonappsa' for Pod. In Helm chart I set automount: false (v0.0.4), because I wan't to create long lived SA Token which I use in Vault auth:
 ```text
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: false
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: "mypythonappsa"
+$ ansible-playbook main.yml --tags "kubernetes-sa"
 $
 $ k get sa -n test2
 NAME                       SECRETS   AGE
 default                    0         45h
 mypythonappsa              0         22h
-$
-
 ```
 
-If I set 'automount: true' in Helm chart (v0.0.3), I get SA Token automatically mounted into Pod:
+If I set 'automountServiceAccountToken: true' in Ansible, I get SA Token automatically mounted into Pod:
 ```text
 $ k get pod mypythonapp-85994db9f5-cspr4 -n test2 -o yaml
    volumeMounts:
