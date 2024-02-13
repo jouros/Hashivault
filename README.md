@@ -1394,7 +1394,7 @@ vault-k8s-agent-injector-5b898c6cc6-dbn4m   1/1     Running   0              55m
 
 Service accounts are intended to provide identity for Pod, changes into SA require Pod restart.  
 
-Helm chart creates Kube serviceaccount 'mypythonappsa' for Pod. In Helm chart I set automount: false (v0.0.4), because I wan't to create long lived SA Token which I use in Vault auth:
+I created 'mypythonappsa' SA for Pod. In Helm chart I set `automountServiceAccountToken: false`, because I wan't to create long lived SA Token which I use in Vault auth:
 ```text
 $ ansible-playbook main.yml --tags "kubernetes-sa"
 $
@@ -1463,32 +1463,30 @@ ok: [kube1] =>
       data:
         ca.crt: LS0tLS...
 $
-$ k get secrets -n test2
-NAME                                TYPE                                  DATA   AGE
-sh.helm.release.v1.mypythonapp.v1   helm.sh/release.v1                    1      29m
-sh.helm.release.v1.mypythonapp.v2   helm.sh/release.v1                    1      28m
-sh.helm.release.v1.vault-k8s.v1     helm.sh/release.v1                    1      28h
-vault-auth-secret                   kubernetes.io/service-account-token   3      102s
+$  k get secrets -n test2
+NAME                              TYPE                                  DATA   AGE
+sh.helm.release.v1.vault-k8s.v1   helm.sh/release.v1                    1      43m
+vault-auth-secret                 kubernetes.io/service-account-token   3      14m
 $
-$ k describe secret vault-auth-secret -n test2
+k describe secret vault-auth-secret -n test2
 Name:         vault-auth-secret
 Namespace:    test2
 Labels:       <none>
 Annotations:  kubernetes.io/service-account.name: mypythonappsa
-              kubernetes.io/service-account.uid: 22d14045-e5be-4a9a-b626-fbb5b791671f
+              kubernetes.io/service-account.uid: 00f15b91-d5f4-40fa-9ab1-ddefe2bf510b
 
 Type:  kubernetes.io/service-account-token
 
 Data
 ====
-namespace:  5 bytes
-token:      eyJhbGc...
 ca.crt:     1107 bytes
+namespace:  5 bytes
+token:      eyJhbGciOiJSUz...
 $
 k8s-admin@kube1:~$ kubectl get secret vault-auth-secret -n test2  --output 'go-template={{ .data.token }}' | base64 --decode > JWT.crt
 $
 $ Below I copy above value from remote to remote:
-$ scp -3 -p k8s-admin@192.168.122.10:~/JWT.crt management@192.168.122.14:~/JWT.crt
+$ scp -3 -p k8s-admin@192.168.122.10:~/Hashi/JWT.crt management@192.168.122.14:~/JWT.crt
 $
 # mv JWT.crt /opt/vault/tls/
 #
@@ -1504,7 +1502,7 @@ Kube API will automatically populate correct values for above secret because ann
 
 JWT Token issuer 'iss':
 ```text
-$ cat JWT.crt | jq -R 'split(".") | .[1] | @base64d | fromjson'
+$ cat /opt/vault/tls/JWT.crt | jq -R 'split(".") | .[1] | @base64d | fromjson'
 {
   "iss": "kubernetes/serviceaccount",
   "kubernetes.io/serviceaccount/namespace": "test2",
