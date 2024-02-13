@@ -1279,7 +1279,7 @@ $ curl -k --request POST --data '{"jwt": "'$JWT'", "role": "kubereadonlyrole"}' 
   "wrap_info": null,
   "warnings": null,
   "auth": {
-    "client_token": "hvs.CAESINgkQGB7GqhtbWlddlZggLs1yoz0LsORzrO6CezWuuUwGh4KHGh2cy5LY1NrbDk2eFI4QjM5am9lZjNvWXRBano",
+    "client_token": "hvs.CAES...",
     "accessor": "Wmy4U5PnTAFjRBljFKr3FhCX",
     "policies": [
       "default",
@@ -1307,19 +1307,58 @@ $ curl -k --request POST --data '{"jwt": "'$JWT'", "role": "kubereadonlyrole"}' 
 }
 ```
 
-
-Inside Pod iss has different value, so for Pod connections I need:
+Next test is read, in this case I can get Vault to tell us curl string:
 ```text
-$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="/opt/vault/tls/JWT.crt" kubernetes_ca_cert="/opt/vault/tls/KUBE_CA_CERT.crt" disable_local_ca_jwt="true" issuer="https://kubernetes.default.svc.cluster.local" disable_iss_validation="false"
+$ vault kv get -output-curl-string -mount=devops/data -version=4 project1/secret1
+curl -H "X-Vault-Request: true" -H "X-Vault-Token: $(vault print token)" http://127.0.0.1:8200/v1/devops/data/project1/secret1?version=4
+```
+
+Read test from remote with above curl, token is one that previous login gave hvs.CAES...:
+```text
+$ curl -k -H "X-Vault-Request: true" -H "X-Vault-Token: hvs.CAES..." https://192.168.122.14:8200/v1/devops/data/project1/secret1?version=4 | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   335  100   335    0     0  21916      0 --:--:-- --:--:-- --:--:-- 22333
+{
+  "request_id": "e50b2b0a-b9c5-65c3-796f-7c6a6fb03478",
+  "lease_id": "",
+  "renewable": false,
+  "lease_duration": 0,
+  "data": {
+    "data": {
+      "password": "bar",
+      "username": "foo"
+    },
+    "metadata": {
+      "created_time": "2024-02-09T13:19:59.627850779Z",
+      "custom_metadata": null,
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 4
+    }
+  },
+  "wrap_info": null,
+  "warnings": null,
+  "auth": null
+}
+```
+
+
+Pod iss has different issuer value, so for Pod connections I need:
+```text
+$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="https://kubernetes.default.svc.cluster.local" disable_iss_validation="true"
 Success! Data written to: auth/kubernetes/config
 $
+$ vault read auth/kubernetes/config
+Key                       Value
+---                       -----
+disable_iss_validation    true
+disable_local_ca_jwt      true
+issuer                    https://kubernetes.default.svc.cluster.local
 ```
 
 Next I'll jump into Kubernetes for patching Pod or go with 'debugging Vault connection'. 
 
-### Debugging Vault connection
-
-CURL
 
 
 ### Kubernetes configuration for Vault
@@ -1466,7 +1505,7 @@ $ ls -la /opt/vault/tls/JWT.crt
 -rw------- 1 vault vault 908 Feb  9 13:43 /opt/vault/tls/JWT.crt
 ```
 
-Kube API will automatically polate correct values for above secret because annotation and type parameters. 
+Kube API will automatically populate correct values for above secret because annotation and type parameters. 
 
 JWT Token issuer 'iss':
 ```text
@@ -1481,7 +1520,7 @@ $ cat JWT.crt | jq -R 'split(".") | .[1] | @base64d | fromjson'
 }
 ```
 
-Notice the difference between JWT and KUBE_CA_CERT issuer!
+Notice the difference between JWT and KUBE_CA_CERT issuer, this is important difference between cmd line curl and Pod Agent Injector access!
 
 
 #### Values for Vault kube auth config 3: KUBE_CA_CERT
@@ -1513,76 +1552,9 @@ $  echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
 
 Patch will only change annotation which activate Sidecar Agent:
 ```text
-$ k annotate --overwrite pods mypythonapp-956fc8b8b-222kr vault.hashicorp.com/agent-inject=true -n test2
-pod/mypythonapp-956fc8b8b-222kr annotated
+$ k annotate --overwrite pods mypythonapp-7d46c57c86-b5n4n vault.hashicorp.com/agent-inject=true -n test2
+pod/mypythonapp-7d46c57c86-b5n4n annotated
 $
-$ k exec -it mypythonapp-956fc8b8b-222kr -n test2 -- cat /vault/secrets/data.json
-{
-  "data": {
-    "username": "correct_user",
-    "password": "correct_password"
-  }
-}
-$
-$ curl -v http://10.110.42.69:8080
-*   Trying 10.110.42.69:8080...
-* Connected to 10.110.42.69 (10.110.42.69) port 8080 (#0)
-> GET / HTTP/1.1
-> Host: 10.110.42.69:8080
-> User-Agent: curl/7.81.0
-> Accept: */*
->
-* Mark bundle as not supporting multiuse
-* HTTP 1.0, assume close after body
-< HTTP/1.0 200 OK
-< Server: SimpleHTTP/0.6 Python/3.9.18
-< Date: Fri, 09 Feb 2024 13:10:48 GMT
-< Content-type: application/json
-<
-* Closing connection 0
-{"data": {"username": "correct_user", "password": "correct_password"}}
-```
-
-Lets change value and see how it effects:
-```text
-$ New values in file:
-$ cat data.json
-{
-  "data": {
-    "username": "foo",
-    "password": "bar"
-  }
-}
-$
-$ vault write -ca-cert ../SSL/rootCA.crt devops/data/project1/secret1 @data.json
-Key                Value
----                -----
-created_time       2024-02-09T13:19:59.627850779Z
-custom_metadata    <nil>
-deletion_time      n/a
-destroyed          false
-version            4
-$
-$ vault kv get -ca-cert ../SSL/rootCA.crt -mount=devops/data/ project1/secret1
-======== Secret Path ========
-devops/data/project1/secret1
-
-======= Metadata =======
-Key                Value
----                -----
-created_time       2024-02-09T13:19:59.627850779Z
-custom_metadata    <nil>
-deletion_time      n/a
-destroyed          false
-version            4
-
-====== Data ======
-Key         Value
----         -----
-password    bar
-username    foo
-$
-
 ```
 
 
