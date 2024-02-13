@@ -1205,7 +1205,8 @@ token_type                          default
 ttl                                 96h
 ```
 
-Next I'll have to jump to Kubernets configuration for JWT Token creation before I can finish Vault kubereadonlyrole auth config. 
+Next I'll have to jump to `Kubernetes configuration for Vault` section for JWT Token creation before I can finish Vault kubereadonlyrole auth config here. 
+
 
 Now I got required values and I can continue Kubenetes auth config, disable_iss_validation="true" is recommended value:
 ```text
