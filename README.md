@@ -1269,10 +1269,13 @@ pem_keys                  []
 
 Test login from K8s cmd line, first I set JWT. From Vault this auth method access K8s TokenReview API to validate JWT, so serviceaccount need to have access to to TokenReview API and I need RBAC config to do so:
 ```text
+$ K8s control-plane:
 $ JWT=$(kubectl get secret vault-auth-secret -n test2 --output 'go-template={{ .data.token }}' | base64 --decode)
 $
+$ From remote Ansible IaC host:
 $ ansible-playbook main.yml --tags "kubernetes-rbac"
 $
+$ Back in K8s control-plane:
 $ curl -k --request POST --data '{"jwt": "'$JWT'", "role": "kubereadonlyrole"}' https://192.168.122.14:8200/v1/auth/kubernetes/login | jq
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
