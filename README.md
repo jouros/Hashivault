@@ -1207,9 +1207,13 @@ ttl                                 96h
 
 Next I'll have to jump to Kubernets configuration for JWT Token creation before I can finish Vault kubereadonlyrole auth config. 
 
-Now I got required values and I can continue Kubenetes auth config:
+Now I got required values and I can continue Kubenetes auth config, disable_iss_validation="true" is recommended value:
 ```text
-$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="/opt/vault/tls/JWT.crt" kubernetes_ca_cert="/opt/vault/tls/KUBE_CA_CERT.crt" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="false"
+$ JWT=$(cat /opt/vault/tls/JWT.crt)
+$ KUBE_CA_CERT=$(cat /opt/vault/tls/KUBE_CA_CERT.crt)
+$
+
+$ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="kubernetes/serviceaccount" disable_iss_validation="true"
 Success! Data written to: auth/kubernetes/config
 $
 $ vault read auth/kubernetes/config
@@ -1218,10 +1222,91 @@ Key                       Value
 disable_iss_validation    false
 disable_local_ca_jwt      true
 issuer                    kubernetes/serviceaccount
-kubernetes_ca_cert        /opt/vault/tls/KUBE_CA_CERT.crt
+kubernetes_ca_cert        -----BEGIN CERTIFICATE-----
+MIIDBTCCAe2gAwIBAgIIdyuuIfzVXj0wDQYJKoZIhvcNAQELBQAwFTETMBEGA1UE
+AxMKa3ViZXJuZXRlczAeFw0yMzEyMTgxNDU5MTFaFw0zMzEyMTUxNTA0MTFaMBUx
+EzARBgNVBAMTCmt1YmVybmV0ZXMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK
+AoIBAQC7xwM5b76DxzkRvdi69NaJEbbORQrb6xiMLw1VQJNDr6VJwQH5VoGr+ZPk
+0YmhCt7OsYpYX5nINnntXLuCyjFucfIl0oUNsYnfxY2aMVwcIs9EkB95mDghGZn5
+C4TA6H773nZsV1IPv/rgW6H10Y7kp46roQludng6zEmxObAwRw4XrecVTsVTAsyR
+Hk9X2uk9Acz8N1mhucJpfh7mmeNEPtZkY3scEGMDTw2+mD2gVUWWt7pz6z3G+za6
+V5gBconeRJr6GglnIrGyw/hIdExVSWiRplZ3cxBbxfkGGWfNv/VII5jVWTdJdrX/
+y1/rDQFj4N1jMz1KtZ0oCrpF1BA9AgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTCCX7HDc26tDiofjH56eTAwDQJ/zAV
+BgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQBlePNQ6zYQ
+udKuRBF/hcJ/AK/vqsagQJ5ABBTxZQ3XMV36OfxQAz0eUlbDb3u948uhWcryfmQ/
+cA0KVIAXE7OR9U+XKklunu1qIutNEiOlNYtsoAp126cUO3/paVp0/Bw9HTi50D/R
+3TRFxcK1BJeyFMfhgx9hxBbyfDoiGMddSgIFqY+IeBNh807o/dhs/trvEcOxmnr7
+SgelYIhm6uQkeeu+c9WQWoTZ7NqCLX6a7yiXp2QQ2+OI4xh6VGIRi1RIr8URvqca
+vUW365wH4L4GO4HTUmnbTCIA4MmoZEPz/zL/kK6QMzt2vCyWOWvIVGhPfg7uQIw/
+032S0xT8hprg
+-----END CERTIFICATE-----
 kubernetes_host           https://kube1:6443
 pem_keys                  []
 ```
+
+Test login from K8s cmd line, first I set JWT. From Vault this auth method access K8s TokenReview API to validate JWT, so serviceaccount need to have access to to TokenReview API and I need RBAC config to do so:
+```text
+$ JWT=$(kubectl get secret vault-auth-secret -n test2 --output 'go-template={{ .data.token }}' | base64 --decode)
+$
+$ cat mypythonapp-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: role-tokenreview-binding
+  namespace: test2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: mypythonappsa
+    namespace: test2
+$
+$ k apply -f mypythonapp-rbac.yaml
+$
+$ curl -k --request POST --data '{"jwt": "'$JWT'", "role": "kubereadonlyrole"}' https://192.168.122.14:8200/v1/auth/kubernetes/login | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1725  100   778  100   947  20807  25327 --:--:-- --:--:-- --:--:-- 46621
+{
+  "request_id": "81023049-c232-9f8c-5b39-a66786dabfb5",
+  "lease_id": "",
+  "renewable": false,
+  "lease_duration": 0,
+  "data": null,
+  "wrap_info": null,
+  "warnings": null,
+  "auth": {
+    "client_token": "hvs.CAESINgkQGB7GqhtbWlddlZggLs1yoz0LsORzrO6CezWuuUwGh4KHGh2cy5LY1NrbDk2eFI4QjM5am9lZjNvWXRBano",
+    "accessor": "Wmy4U5PnTAFjRBljFKr3FhCX",
+    "policies": [
+      "default",
+      "kubepolicy"
+    ],
+    "token_policies": [
+      "default",
+      "kubepolicy"
+    ],
+    "metadata": {
+      "role": "kubereadonlyrole",
+      "service_account_name": "mypythonappsa",
+      "service_account_namespace": "test2",
+      "service_account_secret_name": "vault-auth-secret",
+      "service_account_uid": "22d14045-e5be-4a9a-b626-fbb5b791671f"
+    },
+    "lease_duration": 345600,
+    "renewable": true,
+    "entity_id": "e1604b67-066d-d98c-57b8-fc95b87db58a",
+    "token_type": "service",
+    "orphan": true,
+    "mfa_requirement": null,
+    "num_uses": 0
+  }
+}
+```
+
 
 Inside Pod iss has different value, so for Pod connections I need:
 ```text
