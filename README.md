@@ -1542,12 +1542,12 @@ $  echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
 With Chart 0.0.7 I have set:
 ```text
 podAnnotations:
-  vault.hashicorp.com/agent-inject: 'true'
-  vault.hashicorp.com/role: 'kubereadonlyrole'
-  vault.hashicorp.com/agent-inject-file-data.json: 'devops/data/project1/secret1'
-  vault.hashicorp.com/namespace: 'test2'
+  vault.hashicorp.com/agent-inject: 'true'         <= That will start Sidecar Agent action
+  vault.hashicorp.com/role: 'kubereadonlyrole'     <= Readonly policy role in Vault
+  vault.hashicorp.com/agent-inject-secret-data.json: 'devops/data/project1/secret1' <= where secret is located
+  vault.hashicorp.com/namespace: 'test2'            
   vault.hashicorp.com/tls-skip-verify: "true"
-  vault.hashicorp.com/agent-init-first: "true"
+  vault.hashicorp.com/agent-init-first: "true"     <= That will initiate sidecar before Pod, so secrets will be in place before Python app start. Default is false
 ```
 
 I have correct issuer in auth/kubernetes/config:
