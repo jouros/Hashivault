@@ -1119,7 +1119,7 @@ Keys
 edbf5a51-dd47-a45e-c678-1adb9af005d0
 ```
 
-## Kubernetes Sidecar Agent injector
+## Kubernetes Sidecar Agent Injector
 
 Finally after very long introduction to the main point, how to integrate Kubernetes Pod secrets management to Hashi Vault. In my lab I'll use Sidecar Agent Injector. 
 
@@ -1134,7 +1134,16 @@ ok: [kube1] =>
     hashicorp       https://helm.releases.hashicorp.com
 ```
 
-Info from K8s:
+Sidecar Agent Injector deployment with Ansible role helm-sidecaragent:
+```text
+VAULT_K8S_TAG: "1.3.1"
+VAULT_TAG: "1.d15.2"
+LOG_LEVEL: "debug"
+$
+$ ansible-playbook main.yml --tags "helm-sidecaragent"
+```
+
+Agent info from K8s:
 ```text
 $ k get mutatingwebhookconfigurations -n test2
 NAME                           WEBHOOKS   AGE
@@ -1227,7 +1236,7 @@ token_type                          default
 ttl                                 96h
 ```
 
-Next I'll have to jump to `Kubernetes configuration for Vault` section for JWT Token creation before I can finish Vault kubereadonlyrole auth config here. 
+Next I'll have to jump to `Kubernetes configuration for Vault` section for SA and JWT Token before I can finish Vault kubereadonlyrole auth config here. 
 
 
 Now I got required values and I can continue Kubenetes auth config, disable_iss_validation="true" is recommended value:
@@ -1255,8 +1264,8 @@ Hk9X2uk9Acz8N1mhucJpfh7mmeNEPtZkY3scEGMDTw2+mD2gVUWWt7pz6z3G+za6
 V5gBconeRJr6GglnIrGyw/hIdExVSWiRplZ3cxBbxfkGGWfNv/VII5jVWTdJdrX/
 y1/rDQFj4N1jMz1KtZ0oCrpF1BA9AgMBAAGjWTBXMA4GA1UdDwEB/wQEAwICpDAP
 BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTCCX7HDc26tDiofjH56eTAwDQJ/zAV
-BgNVHREEDjAMggprdWJlcm5ldGVzMA0GCSqGSIb3DQEBCwUAA4IBAQBlePNQ6zYQ
-udKuRBF/hcJ/AK/vqsagQJ5ABBTxZQ3XMV36OfxQAz0eUlbDb3u948uhWcryfmQ/
+BgNVHREEDjAMggprdWJlcm5lsGVzMA0GCSqGSIb3DQEBCwUAA4IBAQBlePNQ6zYQ
+udKuRBF/hcJ/AK/vqsagQJ5AzBTxZQ3XMV36OfxQAz0eUlbDb3u948uhWcryfmQ/
 cA0KVIAXE7OR9U+XKklunu1qIutNEiOlNYtsoAp126cUO3/paVp0/Bw9HTi50D/R
 3TRFxcK1BJeyFMfhgx9hxBbyfDoiGMddSgIFqY+IeBNh807o/dhs/trvEcOxmnr7
 SgelYIhm6uQkeeu+c9WQWoTZ7NqCLX6a7yiXp2QQ2+OI4xh6VGIRi1RIr8URvqca
@@ -1267,7 +1276,7 @@ kubernetes_host           https://kube1:6443
 pem_keys                  []
 ```
 
-Test login from K8s cmd line, first I set JWT. From Vault this auth method access K8s TokenReview API to validate JWT, so serviceaccount need to have access to to TokenReview API and I need RBAC config to do so:
+Test login from K8s cmd line, first I set JWT. From Vault this auth method access K8s TokenReview API to validate JWT, so ServiceAccount need to have access to to TokenReview API and there need to be RBAC config to do so, again I use Ansible to deploy RBAC and test from K8s after deployment:
 ```text
 $ K8s control-plane:
 $ JWT=$(kubectl get secret vault-auth-secret -n test2 --output 'go-template={{ .data.token }}' | base64 --decode)
@@ -1317,13 +1326,13 @@ $ curl -k --request POST --data '{"jwt": "'$JWT'", "role": "kubereadonlyrole"}' 
 }
 ```
 
-Next test is read, in this case I can get Vault to tell us curl string:
+Next test is read, in this case I can get Vault to tell us Curl string:
 ```text
 $ vault kv get -output-curl-string -mount=devops/data -version=4 project1/secret1
 curl -H "X-Vault-Request: true" -H "X-Vault-Token: $(vault print token)" http://127.0.0.1:8200/v1/devops/data/project1/secret1?version=4
 ```
 
-Read test from remote with above curl, token is one that previous login gave hvs.CAES...:
+Read test from remote with above Curl, token is one that previous login gave hvs.CAES...:
 ```text
 $ curl -k -H "X-Vault-Request: true" -H "X-Vault-Token: hvs.CAES..." https://192.168.122.14:8200/v1/devops/data/project1/secret1?version=4 | jq
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
@@ -1353,8 +1362,11 @@ $ curl -k -H "X-Vault-Request: true" -H "X-Vault-Token: hvs.CAES..." https://192
 }
 ```
 
+### Vault configuration for Pod JWT
 
-Pod iss has different issuer value, so for Pod connections I need:
+
+
+Pod has different issuer value:
 ```text
 $ vault write auth/kubernetes/config kubernetes_host="https://kube1:6443" token_reviewer_jwt="$JWT" kubernetes_ca_cert="$KUBE_CA_CERT" disable_local_ca_jwt="true" issuer="https://kubernetes.default.svc.cluster.local" disable_iss_validation="true"
 Success! Data written to: auth/kubernetes/config
@@ -1367,37 +1379,18 @@ disable_local_ca_jwt      true
 issuer                    https://kubernetes.default.svc.cluster.local
 ```
 
-Now I can continue with patching Pod for activating Vault. 
-
 
 ### Kubernetes configuration for Vault
 
 
 #### Sidecar agent deployment
 
-I set spesific tags for Sidecar deployment in WSL2Fun main.yml Ansible variables for deployment role helm-sidecaragent only for personal interest with versions, I also set loglevel to debug:
-```text
-VAULT_K8S_TAG: "1.3.1"
-VAULT_TAG: "1.d15.2"
-LOG_LEVEL: "debug"
-$
-$ ansible-playbook main.yml --tags "helm-sidecaragent"
-ok: [kube1] =>
-  msg:
-  - mypythonapp-85b9fd95f5-6jjvg
-  - vault-k8s-agent-injector-5b898c6cc6-dbn4m
-$ k get pods -n test2
-NAME                                        READY   STATUS    RESTARTS       AGE
-mypythonapp-85b9fd95f5-6jjvg                1/1     Running   1 (128m ago)   22h
-vault-k8s-agent-injector-5b898c6cc6-dbn4m   1/1     Running   0              55m
-```
 
-
-#### Serviceaccount
+#### ServiceAccount
 
 Service accounts are intended to provide identity for Pod, changes into SA require Pod restart.  
 
-I created 'mypythonappsa' SA for Pod. In Helm chart I set `automountServiceAccountToken: false`, because I wan't to create long lived SA Token which I use in Vault auth:
+I created 'mypythonappsa' SA for Pod. In Helm chart:
 ```text
 $ ansible-playbook main.yml --tags "kubernetes-sa"
 $
@@ -1407,7 +1400,7 @@ default                    0         45h
 mypythonappsa              0         22h
 ```
 
-If I set 'automountServiceAccountToken: true' in Ansible, I get SA Token automatically mounted into Pod:
+If I set 'automountServiceAccountToken: true' in Ansible, I get SA JWT Token automatically mounted into Pod. This is required because I have set vault.hashicorp.com/agent-init-first: "true" in Pod Helm Chart which means that init container will start before Pod, this makes Vault secrets available for App before start. Default value for this is 'false':
 ```text
 $ k get pod mypythonapp-85994db9f5-cspr4 -n test2 -o yaml
    volumeMounts:
@@ -1501,7 +1494,7 @@ $ ls -la /opt/vault/tls/JWT.crt
 -rw------- 1 vault vault 908 Feb  9 13:43 /opt/vault/tls/JWT.crt
 ```
 
-Kube API will automatically populate correct values for above secret because annotation and type parameters. 
+Kube API will automatically populate correct values for above secret because annotation and type parameters. In my Lab I shutdown and restart Labs everyday, so JWT token get re-created and I also have to copy current token to vault and re-configure Vault with current JWT.  
 
 JWT Token issuer 'iss':
 ```text
@@ -1544,11 +1537,128 @@ $  echo '{"apiVersion": "authentication.k8s.io/v1", "kind": "TokenRequest"}' \
 {"aud":["https://kubernetes.default.svc.cluster.local"],"exp":1707484026,"iat":1707480426,"iss":"https://kubernetes.default.svc.cluster.local","kubernetes.io":{"namespace":"default","serviceaccount":{"name":"default","uid":"509c4114-800e-4000-9bff-d32040219910"}},"nbf":1707480426,"sub":"system:serviceaccount:default:default"}
 ```
 
-#### Patching Pod
+#### Pod Annotations for Vault
 
-Patch will only change annotation which activate Sidecar Agent:
+With Chart 0.0.7 I have set:
 ```text
-$ k annotate --overwrite pods mypythonapp-7d46c57c86-b5n4n vault.hashicorp.com/agent-inject=true -n test2
+podAnnotations:
+  vault.hashicorp.com/agent-inject: 'true'
+  vault.hashicorp.com/role: 'kubereadonlyrole'
+  vault.hashicorp.com/agent-inject-file-data.json: 'devops/data/project1/secret1'
+  vault.hashicorp.com/namespace: 'test2'
+  vault.hashicorp.com/tls-skip-verify: "true"
+  vault.hashicorp.com/agent-init-first: "true"
+```
+
+I have correct issuer in auth/kubernetes/config:
+```text
+$ vault read auth/kubernetes/config | grep issuer
+issuer                    https://kubernetes.default.svc.cluster.local
+```
+
+I can now deploy mypythonapp with Ansible:
+```text
+$ ansible-playbook main.yml --tags "helm-mypythonapp"
+```
+
+From K8s we can see how Agent Injector deploy additional sidecar container for Pod:
+```text
+$ k get pods -n test2
+NAME                                       READY   STATUS    RESTARTS            AGE
+mypythonapp-55db895c76-kz942               2/2     Running   0                   4s
+vault-k8s-agent-injector-97475d5d8-nqztv   1/1     Running   2 (<invalid> ago)   45h
+```
+
+Checks from Pod:
+```text
+$ k exec -it mypythonapp-55db895c76-kz942 -n test2 -c mypythonapp -- ls /vault/secrets/
+data.json
+$
+$ k exec -it mypythonapp-55db895c76-kz942 -n test2 -c mypythonapp -- cat /vault/secrets/data.json
+{"data":{"password":"bar","username":"foo"},"metadata":{"created_time":"2024-02-09T13:19:59.627850779Z","custom_metadata":null,"deletion_time":"","destroyed":false,"version":4}}
+```
+
+Curl request for App:
+```text
+$ curl http://10.108.194.164:8080
+{"data": {"password": "bar", "username": "foo"}, "metadata": {"created_time": "2024-02-09T13:19:59.627850779Z", "custom_metadata": null, "deletion_time": "", "destroyed": false, "version": 4}}
+```
+
+I created new Token for remote devopsadmin which is role for updating Pod secrets, lets change values:
+```text
+$ cat data.json
+{
+  "data": {
+    "username": "one",
+    "password": "two"
+  }
+}
+$
+$ vault write -ca-cert ../SSL/rootCA.crt devops/data/project1/secret1 @data.json
+Key                Value
+---                -----
+created_time       2024-02-15T12:16:15.948350293Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            5
+$
+$ curl http://10.108.194.164:8080
+{"data": {"password": "two", "username": "one"}, "metadata": {"created_time": "2024-02-15T12:16:15.948350293Z", "custom_metadata": null, "deletion_time": "", "destroyed": false, "version": 5}}
+```
+
+As we can see, new values get automatically updated in Pod mypytonapp. 
+
+
+#### Inspecting Kubernetes JWT tokens
+
+
+```text
+$ k exec -it mypythonapp-55db895c76-kz942 -n test2 -c vault-agent -- cat /var/run/secrets/kubernetes.io/serviceaccount/token | jq -R 'split(".") | .[1] | @base64d | fromjson'
+{
+  "aud": [
+    "https://kubernetes.default.svc.cluster.local"
+  ],
+  "exp": 1739533549,
+  "iat": 1707997549,
+  "iss": "https://kubernetes.default.svc.cluster.local",
+  "kubernetes.io": {
+    "namespace": "test2",
+    "pod": {
+      "name": "mypythonapp-55db895c76-kz942",
+      "uid": "b5d5af98-5226-46a0-a285-24909ad41071"
+    },
+    "serviceaccount": {
+      "name": "mypythonappsa",
+      "uid": "c42086b9-1460-4456-a04d-9e1bcf73ecf8"
+    },
+    "warnafter": 1708001156
+  },
+  "nbf": 1707997549,
+  "sub": "system:serviceaccount:test2:mypythonappsa"
+}
+```
+
+Lets check expiration date:
+```text
+$ date -d @1739533549
+Fri Feb 14 13:45:49 EET 2025
+```
+
+Check issue at claim, e.g. age of token:
+```text
+$ date -d @1707997549
+Thu Feb 15 13:45:49 EET 2024
+```
+
+Also notice iss:
+```text
+"iss": "https://kubernetes.default.svc.cluster.local",
+```
+
+With annotate cmd you can change annotation:
+```text
+$ k annotate --overwrite pods mypythonapp-7d46c57c86-b5n4n vault.hashicorp.com/agent-inject=false -n test2
 pod/mypythonapp-7d46c57c86-b5n4n annotated
 $
 ```
